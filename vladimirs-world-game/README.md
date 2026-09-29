@@ -16,8 +16,8 @@ Pentru primele două moduri se alege regiunea (toată lumea sau un continent) ș
 
 Fiecare rundă are 10 întrebări. Răspunsurile corecte fără ajutor aduc câte o stea ⭐, iar stelele se adună de la o rundă la alta.
 
-Jocul citește cu voce tare întrebările și răspunsurile (în română, dacă browserul are o voce românească),
-așa că poate fi jucat și de copiii care încă învață să citească. 🗣️ repetă ultima frază, 🔊 oprește sunetul.
+Textele de pe ecran sunt în română, iar vocea jocului citește întrebările și răspunsurile în **engleză**
+(„Find France!”, „The capital is Paris.”), așa că Vladimir exersează și engleza. 🗣️ repetă ultima frază, 🔊 oprește sunetul.
 
 Harta se poate mări cu două degete (sau rotița mouse-ului) și muta prin tragere.
 

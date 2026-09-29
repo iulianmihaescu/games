@@ -6,13 +6,13 @@
   // Date
   // ---------------------------------------------------------------------------
   const CONTINENTS = {
-    WORLD: { name: 'Toată lumea', emoji: '🌍', box: null },
-    EU: { name: 'Europa', emoji: '🏰', box: [[-25, 34], [45, 71]], hue: 265 },
-    AS: { name: 'Asia', emoji: '🐼', box: [[25, -11], [148, 58]], hue: 25 },
-    AF: { name: 'Africa', emoji: '🦁', box: [[-19, -36], [52, 38]], hue: 48 },
-    NA: { name: 'America de Nord', emoji: '🦅', box: [[-168, 7], [-52, 72]], hue: 120 },
-    SA: { name: 'America de Sud', emoji: '🦜', box: [[-84, -56], [-34, 13]], hue: 170 },
-    OC: { name: 'Oceania', emoji: '🦘', box: [[110, -48], [180, 0]], hue: 340 }
+    WORLD: { name: 'Toată lumea', en: 'The whole world', emoji: '🌍', box: null },
+    EU: { name: 'Europa', en: 'Europe', emoji: '🏰', box: [[-25, 34], [45, 71]], hue: 265 },
+    AS: { name: 'Asia', en: 'Asia', emoji: '🐼', box: [[25, -11], [148, 58]], hue: 25 },
+    AF: { name: 'Africa', en: 'Africa', emoji: '🦁', box: [[-19, -36], [52, 38]], hue: 48 },
+    NA: { name: 'America de Nord', en: 'North America', emoji: '🦅', box: [[-168, 7], [-52, 72]], hue: 120 },
+    SA: { name: 'America de Sud', en: 'South America', emoji: '🦜', box: [[-84, -56], [-34, 13]], hue: 170 },
+    OC: { name: 'Oceania', en: 'Oceania', emoji: '🦘', box: [[110, -48], [180, 0]], hue: 340 }
   };
 
   const COUNTRIES = window.VWG_COUNTRIES.map(function (r) {
@@ -21,13 +21,24 @@
       lat: r[4], lon: r[5], conts: r[6], level: r[7]
     };
   });
+  const EN = window.VWG_EN || {};
+  COUNTRIES.forEach(function (c) {
+    const en = EN[c.id] || [];
+    c.enName = en[0] || c.name;
+    c.enCapital = en[1] || c.capital;
+  });
   const byId = new Map(COUNTRIES.map(function (c) { return [c.id, c]; }));
+  // Capitala în română → capitala în engleză (pentru variantele citite cu voce tare).
+  const capitalEn = new Map(COUNTRIES.filter(function (c) { return c.capital; })
+    .map(function (c) { return [c.capital, c.enCapital]; }));
 
   const ROUND_SIZE = 10;
   const MAX_TRIES = 3;
   const STORE_KEY = 'vwg-total-stars';
 
   const PRAISE = ['Bravo!', 'Super!', 'Excelent!', 'Foarte bine!', 'Minunat!', 'Ce deștept ești!', 'Ura!'];
+  // Vocea jocului vorbește în engleză.
+  const PRAISE_EN = ['Well done!', 'Great job!', 'Excellent!', 'Awesome!', 'Fantastic!', 'You are so smart!', 'Hooray!'];
 
   // ---------------------------------------------------------------------------
   // Stare
@@ -87,13 +98,15 @@
   }
 
   // ---------------------------------------------------------------------------
-  // Voce (citește cu voce tare, pentru că Vladimir învață încă să citească)
+  // Voce (citește cu voce tare, în engleză)
   // ---------------------------------------------------------------------------
-  let roVoice = null;
+  let enVoice = null;
   function pickVoice() {
     if (!('speechSynthesis' in window)) return;
     const voices = speechSynthesis.getVoices();
-    roVoice = voices.find(function (v) { return /^ro(-|_|$)/i.test(v.lang); }) || null;
+    const en = voices.filter(function (v) { return /^en(-|_|$)/i.test(v.lang); });
+    enVoice = en.find(function (v) { return /en[-_]GB/i.test(v.lang); }) ||
+      en.find(function (v) { return /en[-_]US/i.test(v.lang); }) || en[0] || null;
   }
   if ('speechSynthesis' in window) {
     pickVoice();
@@ -106,8 +119,8 @@
     if (!state.sound || !('speechSynthesis' in window)) return;
     speechSynthesis.cancel();
     const u = new SpeechSynthesisUtterance(text);
-    u.lang = 'ro-RO';
-    if (roVoice) u.voice = roVoice;
+    u.lang = enVoice ? enVoice.lang : 'en-GB';
+    if (enVoice) u.voice = enVoice;
     u.rate = 0.9;
     u.pitch = 1.1;
     speechSynthesis.speak(u);
@@ -390,7 +403,7 @@
         ? '🔍 Unde căutăm țările?'
         : '🏰 Capitalele de unde?';
       show('screen-setup');
-      speak('Alege unde vrei să joci și cât de greu să fie.');
+      speak('Choose where you want to play, and how hard it should be.');
     });
   });
 
@@ -406,7 +419,7 @@
       sfx.tap();
       state.region = key;
       updateSetup();
-      speak(r.name, false);
+      speak(r.en, false);
     });
     regionGrid.appendChild(b);
   });
@@ -416,7 +429,7 @@
       sfx.tap();
       state.level = parseInt(b.dataset.level, 10);
       updateSetup();
-      speak(['', 'Ușor', 'Mediu', 'Greu'][state.level], false);
+      speak(['', 'Easy', 'Medium', 'Hard'][state.level], false);
     });
   });
 
@@ -526,7 +539,7 @@
 
     if (state.mode === 'find') {
       setPrompt('Găsește pe hartă:', c.name, '');
-      speak('Găsește ' + c.name + '!');
+      speak('Find ' + c.enName + '!');
       zoomToRegion(state.region);
     } else {
       const f = featureById.get(c.id);
@@ -535,7 +548,8 @@
       setPrompt('Țara aceasta este:', c.name, 'Care este <b>capitala</b>?');
       const options = capitalOptions(c);
       renderAnswers(options);
-      speak(c.name + '. Care este capitala? ' + options.slice(0, -1).join(', ') + ' sau ' + options[options.length - 1] + '?');
+      const spoken = options.map(function (o) { return capitalEn.get(o) || o; });
+      speak(c.enName.charAt(0).toUpperCase() + c.enName.slice(1) + '. What is the capital? ' + spoken.slice(0, -1).join(', ') + ', or ' + spoken[spoken.length - 1] + '?');
     }
   }
 
@@ -562,9 +576,8 @@
       addCapitalLabel(target);
       sfx.good();
       confetti(star ? 140 : 60);
-      const praise = pick(PRAISE);
-      setPrompt(praise + ' Ai găsit-o!', target.name, 'Capitala este <b>' + target.capital + '</b> 🏰');
-      speak(praise + ' Ai găsit ' + target.name + '! Capitala este ' + target.capital + '.');
+      setPrompt(pick(PRAISE) + ' Ai găsit-o!', target.name, 'Capitala este <b>' + target.capital + '</b> 🏰');
+      speak(pick(PRAISE_EN) + ' You found ' + target.enName + '! The capital is ' + target.enCapital + '.');
       $('next-btn').hidden = false;
       updateScore();
       // Țara găsită rămâne colorată până la sfârșitul rundei.
@@ -584,9 +597,9 @@
     if (state.tries >= MAX_TRIES) {
       giveHint();
     } else if (c) {
-      speak('Aceasta este ' + c.name + '. Mai încearcă!');
+      speak('That is ' + c.enName + '. Try again!');
     } else {
-      speak('Mai încearcă!');
+      speak('Try again!');
     }
   }
 
@@ -596,7 +609,7 @@
     const f = featureById.get(state.current.id);
     pathById.get(state.current.id).classed('hint', true);
     zoomToCountry(f, 4);
-    speak('Uite! ' + state.current.name + ' clipește. Apasă pe ea!');
+    speak('Look! ' + state.current.enName + ' is blinking. Tap on it!');
     toast('💡 Apasă pe țara care clipește!');
   }
 
@@ -640,9 +653,8 @@
       addCapitalLabel(c);
       sfx.good();
       confetti(star ? 140 : 60);
-      const praise = pick(PRAISE);
-      setPrompt(praise, c.name, 'Capitala este <b>' + c.capital + '</b> 🏰');
-      speak(praise + ' ' + c.name + ' are capitala ' + c.capital + '.');
+      setPrompt(pick(PRAISE), c.name, 'Capitala este <b>' + c.capital + '</b> 🏰');
+      speak(pick(PRAISE_EN) + ' The capital of ' + c.enName + ' is ' + c.enCapital + '.');
       $('next-btn').hidden = false;
       updateScore();
     } else {
@@ -650,7 +662,7 @@
       btn.classList.add('wrong');
       btn.disabled = true;
       sfx.bad();
-      speak('Nu este ' + opt + '. Mai încearcă!');
+      speak('It is not ' + (capitalEn.get(opt) || opt) + '. Try again!');
     }
   }
 
@@ -661,11 +673,12 @@
     saveTotal(newTotal);
     const ratio = total ? state.score / total : 0;
     let title;
+    let titleEn;
     let trophy;
-    if (ratio >= 0.9) { title = 'Campion al lumii, Vladimir!'; trophy = '🏆'; }
-    else if (ratio >= 0.6) { title = 'Foarte bine, Vladimir!'; trophy = '🥇'; }
-    else if (ratio >= 0.3) { title = 'Bravo, Vladimir!'; trophy = '🎖️'; }
-    else { title = 'Bun început, Vladimir!'; trophy = '🌱'; }
+    if (ratio >= 0.9) { title = 'Campion al lumii, Vladimir!'; titleEn = 'World champion, Vladimir!'; trophy = '🏆'; }
+    else if (ratio >= 0.6) { title = 'Foarte bine, Vladimir!'; titleEn = 'Very good, Vladimir!'; trophy = '🥇'; }
+    else if (ratio >= 0.3) { title = 'Bravo, Vladimir!'; titleEn = 'Well done, Vladimir!'; trophy = '🎖️'; }
+    else { title = 'Bun început, Vladimir!'; titleEn = 'Good start, Vladimir!'; trophy = '🌱'; }
     $('end-trophy').textContent = trophy;
     $('end-title').textContent = title;
     $('end-text').textContent = 'Ai câștigat ' + state.score + ' din ' + total + ' stele. În total ai ' + newTotal + ' ⭐';
@@ -673,7 +686,7 @@
     $('end-overlay').hidden = false;
     sfx.win();
     confetti(250);
-    speak(title + ' Ai câștigat ' + state.score + ' stele din ' + total + '!');
+    speak(titleEn + ' You won ' + state.score + (state.score === 1 ? ' star' : ' stars') + ' out of ' + total + '!');
   }
 
   // ------------------------- Modul „Explorează” -------------------------------
@@ -690,7 +703,7 @@
     $('progress').innerHTML = '';
     $('prompt-flag').textContent = '🗺️';
     setPrompt('Explorează lumea!', 'Atinge o țară', 'Îți spun cum se numește și care e capitala ei.');
-    speak('Atinge o țară pe hartă și îți spun cum se numește!');
+    speak('Tap a country on the map, and I will tell you its name!');
     zoomToBounds(worldBounds, { pad: 1 });
   }
 
@@ -705,7 +718,7 @@
       $('prompt-flag').textContent = '🗺️';
       setPrompt('Acesta este teritoriul:', name, '');
       addCountryLabel(f, name);
-      speak(name);
+      speak(raw);
       return;
     }
     setFlag($('prompt-flag'), c);
@@ -714,10 +727,10 @@
     if (c.capital) {
       addCapitalLabel(c);
       setPrompt(contName, c.name, 'Capitala: <b>' + c.capital + '</b> 🏰');
-      speak(c.name + '. Capitala este ' + c.capital + '.');
+      speak(c.enName.charAt(0).toUpperCase() + c.enName.slice(1) + '. The capital is ' + c.enCapital + '.');
     } else {
       setPrompt(contName, c.name, '');
-      speak(c.name);
+      speak(c.enName);
     }
   }
 
