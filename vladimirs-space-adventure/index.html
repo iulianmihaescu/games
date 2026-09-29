@@ -1,0 +1,1495 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vladimir's Space Adventure</title>
+<meta name="description" content="A kids' game: fly a rocket between the planets of the solar system.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🚀</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: canvas full-screen cu spațiul; HUD și cardurile stau deasupra, ca straturi HTML. */
+:root {
+  --space: #070b24;
+  --panel: rgba(18, 24, 66, 0.82);
+  --panel-solid: #161d52;
+  --ink: #f4f1ff;
+  --muted: #b3b7e6;
+  --gold: #ffd166;
+  --flame: #ff7b3a;
+  --mint: #3ee0a5;
+  --violet: #8f7cff;
+  --font: 'Baloo 2', 'Comic Sans MS', 'Chalkboard SE', system-ui, sans-serif;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+html, body {
+  margin: 0;
+  height: 100%;
+  overflow: hidden;
+  background: var(--space);
+  color: var(--ink);
+  font-family: var(--font);
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+button {
+  font-family: inherit;
+  color: inherit;
+  border: none;
+  cursor: pointer;
+  -webkit-user-select: none;
+  user-select: none;
+  touch-action: manipulation;
+}
+button:focus-visible { outline: 3px solid var(--gold); outline-offset: 3px; }
+[hidden] { display: none !important; }
+
+#space {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  touch-action: none;
+}
+
+/* ---------- ecranul de start ---------- */
+.screen {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  overflow-y: auto;
+  background: radial-gradient(ellipse at center, rgba(7, 11, 36, 0.35), rgba(7, 11, 36, 0.8));
+}
+.start-inner { text-align: center; max-width: 760px; width: 100%; }
+.start-rocket {
+  font-size: clamp(70px, 18vw, 120px);
+  line-height: 1;
+  display: inline-block;
+  animation: launch 3s ease-in-out infinite;
+}
+@keyframes launch {
+  0%, 100% { transform: translateY(0) rotate(-8deg); }
+  50% { transform: translateY(-16px) rotate(8deg); }
+}
+h1 {
+  margin: 8px 0 0;
+  font-size: clamp(34px, 8vw, 64px);
+  font-weight: 800;
+  line-height: 1;
+  letter-spacing: 0.5px;
+  text-wrap: balance;
+  color: var(--gold);
+  text-shadow: 0 0 24px rgba(255, 209, 102, 0.45), 3px 3px 0 #b3431b;
+}
+h1 span { color: #fff; text-shadow: 0 0 24px rgba(143, 124, 255, 0.7), 3px 3px 0 #4b33c9; }
+.subtitle { font-size: clamp(18px, 4vw, 24px); color: var(--muted); margin: 10px 0 12px; }
+.total {
+  display: inline-block;
+  background: var(--gold);
+  color: #3a2a00;
+  font-weight: 800;
+  font-size: 22px;
+  padding: 2px 18px;
+  border-radius: 999px;
+  margin-bottom: 20px;
+}
+.mode-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 16px; }
+.mode-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 18px 12px;
+  border-radius: 24px;
+  box-shadow: 0 6px 0 rgba(0, 0, 0, 0.35);
+  color: #fff;
+  transition: transform 0.12s;
+}
+.mode-btn:active { transform: translateY(4px); box-shadow: none; }
+.mode-btn.missions { background: linear-gradient(160deg, #ff9a52, #ff5d6c); }
+.mode-btn.free { background: linear-gradient(160deg, #8f7cff, #4b5bff); }
+.mode-emoji { font-size: 54px; line-height: 1.1; }
+.mode-name { font-size: 28px; font-weight: 800; }
+.mode-desc { font-size: 17px; opacity: 0.95; }
+
+/* ---------- HUD ---------- */
+.topbar {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 8px;
+  pointer-events: none;
+}
+.topbar > * { pointer-events: auto; }
+.icon-btn {
+  width: 50px;
+  height: 50px;
+  flex: none;
+  border-radius: 16px;
+  background: var(--panel);
+  font-size: 24px;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 4px 0 rgba(0, 0, 0, 0.35);
+  backdrop-filter: blur(4px);
+}
+.icon-btn:active { transform: translateY(3px); box-shadow: none; }
+.icon-btn.on { background: var(--mint); }
+.mission {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--panel);
+  border-radius: 18px;
+  padding: 4px 14px 4px 6px;
+  backdrop-filter: blur(4px);
+}
+.mission img { width: 44px; height: 44px; flex: none; object-fit: contain; }
+.mission-text { min-width: 0; line-height: 1.05; }
+.mission-small { font-size: 15px; color: var(--muted); }
+.mission-big {
+  font-size: clamp(20px, 5vw, 30px);
+  font-weight: 800;
+  color: var(--gold);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.score {
+  background: var(--gold);
+  color: #3a2a00;
+  font-size: 22px;
+  font-weight: 800;
+  border-radius: 999px;
+  padding: 2px 14px;
+  flex: none;
+}
+.controls {
+  position: fixed;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.hint, .toast {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--panel);
+  border-radius: 999px;
+  padding: 6px 20px;
+  font-size: 21px;
+  font-weight: 700;
+  text-align: center;
+  pointer-events: none;
+  max-width: calc(100% - 32px);
+}
+.hint { bottom: calc(160px + env(safe-area-inset-bottom, 0px)); animation: bob 1.6s ease-in-out infinite; }
+.toast { top: calc(84px + env(safe-area-inset-top, 0px)); background: rgba(255, 123, 58, 0.92); }
+@keyframes bob { 50% { transform: translate(-50%, -6px); } }
+
+/* ---------- carduri ---------- */
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(4, 6, 20, 0.45);
+  z-index: 5;
+}
+.card {
+  width: 100%;
+  max-width: 480px;
+  background: var(--panel-solid);
+  border: 3px solid rgba(255, 255, 255, 0.12);
+  border-radius: 28px;
+  padding: 18px 20px 22px;
+  text-align: center;
+  box-shadow: 0 10px 0 rgba(0, 0, 0, 0.35), 0 0 60px rgba(143, 124, 255, 0.35);
+  animation: pop 0.4s ease-out;
+}
+@keyframes pop { from { transform: scale(0.4); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.card img { width: 150px; height: 110px; object-fit: contain; animation: spin 14s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.card .kicker { font-size: 18px; color: var(--mint); font-weight: 700; margin-top: 4px; }
+.card h2 { margin: 0; font-size: 40px; line-height: 1.1; color: var(--gold); }
+.card ul { list-style: none; padding: 0; margin: 10px 0 16px; display: grid; gap: 8px; text-align: left; }
+.card li {
+  background: rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  padding: 8px 12px;
+  font-size: 19px;
+  line-height: 1.25;
+}
+.big-btn {
+  background: var(--flame);
+  color: #fff;
+  font-size: 26px;
+  font-weight: 800;
+  padding: 8px 30px;
+  border-radius: 999px;
+  box-shadow: 0 6px 0 #b3431b;
+}
+.big-btn:active { transform: translateY(4px); box-shadow: none; }
+.big-btn.secondary { background: var(--violet); box-shadow: 0 6px 0 #4b33c9; }
+.btn-row { display: flex; flex-wrap: wrap; gap: 12px; justify-content: center; }
+.badge { font-size: 96px; line-height: 1; animation: launch 2.5s ease-in-out infinite; }
+.end-stars { font-size: 26px; margin: 6px 0 16px; }
+
+#confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 20; }
+
+@media (max-width: 560px) {
+  .icon-btn { width: 44px; height: 44px; font-size: 21px; }
+  .mission img { width: 36px; height: 36px; }
+  .score { font-size: 18px; padding: 2px 10px; }
+  .topbar { gap: 6px; padding-left: 8px; padding-right: 8px; }
+  .hint { font-size: 18px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .start-rocket, .badge, .hint, .card img { animation: none; }
+}
+</style>
+</head>
+<body>
+
+<canvas id="space" aria-label="Space with planets and your rocket"></canvas>
+
+<!-- Ecranul de start -->
+<section class="screen" id="start">
+  <div class="start-inner">
+    <div class="start-rocket" aria-hidden="true">🚀</div>
+    <h1>Vladimir's<br><span>Space Adventure</span></h1>
+    <p class="subtitle">Fly your rocket through the solar system!</p>
+    <div class="total" id="total">⭐ 0</div>
+    <div class="mode-grid">
+      <button class="mode-btn missions" data-mode="missions">
+        <span class="mode-emoji">🧑‍🚀</span>
+        <span class="mode-name">Space missions</span>
+        <span class="mode-desc">Fly to every planet</span>
+      </button>
+      <button class="mode-btn free" data-mode="free">
+        <span class="mode-emoji">🪐</span>
+        <span class="mode-name">Free flight</span>
+        <span class="mode-desc">Explore anywhere you like</span>
+      </button>
+    </div>
+  </div>
+</section>
+
+<!-- HUD în timpul jocului -->
+<div id="hud" hidden>
+  <div class="topbar">
+    <button class="icon-btn" id="home-btn" aria-label="Menu">🏠</button>
+    <div class="mission">
+      <img id="mission-img" alt="">
+      <div class="mission-text">
+        <div class="mission-small" id="mission-small"></div>
+        <div class="mission-big" id="mission-big"></div>
+      </div>
+    </div>
+    <div class="score" id="score">⭐ 0</div>
+    <button class="icon-btn" id="sound-btn" aria-label="Sound">🔊</button>
+  </div>
+  <div class="controls">
+    <button class="icon-btn" id="auto-btn" aria-label="Autopilot">🧭</button>
+    <button class="icon-btn" id="say-btn" aria-label="Say it again">🗣️</button>
+  </div>
+  <div class="hint" id="hint">👆 Hold your finger where you want to fly!</div>
+  <div class="toast" id="toast" hidden></div>
+</div>
+
+<!-- Cardul cu informații despre planetă -->
+<div class="overlay" id="card" hidden>
+  <div class="card">
+    <img id="card-img" alt="">
+    <div class="kicker" id="card-kicker"></div>
+    <h2 id="card-title"></h2>
+    <ul id="card-facts"></ul>
+    <button class="big-btn" id="card-btn"></button>
+  </div>
+</div>
+
+<!-- Finalul misiunilor -->
+<div class="overlay" id="end" hidden>
+  <div class="card">
+    <div class="badge">🏅</div>
+    <h2>Space Explorer, Vladimir!</h2>
+    <p class="kicker" id="end-text"></p>
+    <div class="end-stars" id="end-stars"></div>
+    <div class="btn-row">
+      <button class="big-btn" id="again-btn">Fly again 🚀</button>
+      <button class="big-btn secondary" id="menu-btn">Menu 🏠</button>
+    </div>
+  </div>
+</div>
+
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<script>
+/* Vladimir's Space Adventure — racheta zboară printre planete. */
+(function () {
+  'use strict';
+
+  // ---------------------------------------------------------------------------
+  // Corpurile cerești (dimensiuni și distanțe „de joc”, nu la scară reală)
+  // ---------------------------------------------------------------------------
+  const SUN = { id: 'sun', name: 'the Sun', r: 130 };
+  const BODIES = [
+    { id: 'mercury', name: 'Mercury', r: 22, orbit: 380, period: 80, a0: 0.4,
+      facts: ['Mercury is the smallest planet.', 'It is the closest planet to the Sun.', 'A year on Mercury lasts only 88 days!'] },
+    { id: 'venus', name: 'Venus', r: 34, orbit: 560, period: 120, a0: 2.2,
+      facts: ['Venus is the hottest planet, even hotter than Mercury!', 'It is covered in thick yellow clouds.', 'Venus is the brightest planet in our night sky.'] },
+    { id: 'earth', name: 'Earth', r: 38, orbit: 760, period: 170, a0: 4.0,
+      facts: ['Earth is our home!', 'It is the only planet we know with plants and animals.', 'Most of Earth is covered by water.'] },
+    { id: 'mars', name: 'Mars', r: 29, orbit: 960, period: 230, a0: 5.5,
+      facts: ['Mars is the red planet, because its dust is rusty.', 'It has the biggest volcano in the solar system.', 'Robots called rovers drive on Mars.'] },
+    { id: 'jupiter', name: 'Jupiter', r: 92, orbit: 1430, period: 420, a0: 1.2,
+      facts: ['Jupiter is the biggest planet of all!', 'Its Great Red Spot is a storm bigger than Earth.', 'Jupiter has more than 90 moons.'] },
+    { id: 'saturn', name: 'Saturn', r: 76, orbit: 1800, period: 540, a0: 3.1, ring: true,
+      facts: ['Saturn has beautiful rings made of ice and rock.', 'It is so light it could float in a giant bathtub!', 'Saturn is the second biggest planet.'] },
+    { id: 'uranus', name: 'Uranus', r: 52, orbit: 2120, period: 720, a0: 5.0, thinRing: true,
+      facts: ['Uranus spins on its side, like a rolling ball.', 'It is an ice giant and looks blue-green.', 'It is very, very cold on Uranus.'] },
+    { id: 'neptune', name: 'Neptune', r: 50, orbit: 2420, period: 900, a0: 0.2,
+      facts: ['Neptune is the farthest planet from the Sun.', 'It has the strongest winds in the solar system.', 'Neptune is a deep blue ice giant.'] },
+    { id: 'moon', name: 'the Moon', label: 'Moon', r: 13, orbit: 95, period: 26, a0: 0, parent: 'earth',
+      facts: ['The Moon goes around the Earth.', 'Astronauts walked on the Moon in 1969.', 'The Moon has lots of round craters.'] }
+  ];
+  const byId = {};
+  BODIES.forEach(function (b) { byId[b.id] = b; b.x = 0; b.y = 0; });
+  const PLANETS = BODIES.filter(function (b) { return !b.parent; });
+  const WORLD_R = 2700;
+  const BELT = [1120, 1260];
+
+  const ROCKET_R = 16;
+  const ACCEL = 950;
+  const MAX_SPEED = 560;
+  const STORE_KEY = 'vsa-total-stars';
+
+  // ---------------------------------------------------------------------------
+  // Utilitare
+  // ---------------------------------------------------------------------------
+  const $ = function (id) { return document.getElementById(id); };
+  function rng(seed) {
+    return function () {
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed >>> 15, 1 | seed);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function shuffle(a) {
+    for (let i = a.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const t = a[i]; a[i] = a[j]; a[j] = t;
+    }
+    return a;
+  }
+  function loadTotal() { try { return parseInt(localStorage.getItem(STORE_KEY), 10) || 0; } catch (e) { return 0; } }
+  function saveTotal(n) { try { localStorage.setItem(STORE_KEY, String(n)); } catch (e) { /* fără stocare */ } }
+  function cap(s) { return s.charAt(0).toUpperCase() + s.slice(1); }
+  function label(b) { return b.label || b.name; }
+
+  // ---------------------------------------------------------------------------
+  // Voce (engleză, preferă o voce de femeie)
+  // ---------------------------------------------------------------------------
+  const FEMALE = /female|woman|libby|sonia|maisie|hazel|susan|zira|jenny|aria|ava|emma|michelle|natasha|clara|samantha|karen|moira|tessa|serena|kate|fiona|victoria|allison|martha|catherine|joanna|salli|kimberly|kendra|amy|olivia/i;
+  const MALE = /\bmale|guy|ryan|thomas|daniel|george|alex|fred|arthur|oliver|david|mark|james|william|christopher|eric|roger|brian|matthew|joey|justin/i;
+  let voice = null;
+  let voiceFemale = false;
+  function pickVoice() {
+    if (!('speechSynthesis' in window)) return;
+    const en = speechSynthesis.getVoices().filter(function (v) { return /^en(-|_|$)/i.test(v.lang); });
+    function prefer(list) {
+      return list.find(function (v) { return /en[-_]GB/i.test(v.lang); }) ||
+        list.find(function (v) { return /en[-_]US/i.test(v.lang); }) || list[0] || null;
+    }
+    voice = prefer(en.filter(function (v) { return FEMALE.test(v.name) && !/\bmale\b/i.test(v.name); }));
+    voiceFemale = !!voice;
+    if (!voice) voice = prefer(en.filter(function (v) { return !MALE.test(v.name); })) || prefer(en);
+  }
+  if ('speechSynthesis' in window) { pickVoice(); speechSynthesis.onvoiceschanged = pickVoice; }
+
+  let soundOn = true;
+  let lastSpoken = '';
+  function speak(text) {
+    lastSpoken = text;
+    if (!soundOn || !('speechSynthesis' in window)) return;
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = voice ? voice.lang : 'en-GB';
+    if (voice) u.voice = voice;
+    u.rate = 0.9;
+    u.pitch = voiceFemale ? 1.1 : 1.35;
+    speechSynthesis.speak(u);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sunete generate (fără fișiere)
+  // ---------------------------------------------------------------------------
+  let audio = null;
+  let engineGain = null;
+  function initAudio() {
+    if (audio) return;
+    try {
+      audio = new (window.AudioContext || window.webkitAudioContext)();
+      // Zgomot filtrat pentru motor, pornit mereu, cu volum 0 când nu accelerăm.
+      const len = audio.sampleRate * 2;
+      const buf = audio.createBuffer(1, len, audio.sampleRate);
+      const data = buf.getChannelData(0);
+      for (let i = 0; i < len; i++) data[i] = Math.random() * 2 - 1;
+      const src = audio.createBufferSource();
+      src.buffer = buf;
+      src.loop = true;
+      const filter = audio.createBiquadFilter();
+      filter.type = 'lowpass';
+      filter.frequency.value = 380;
+      engineGain = audio.createGain();
+      engineGain.gain.value = 0;
+      src.connect(filter).connect(engineGain).connect(audio.destination);
+      src.start();
+    } catch (e) { audio = null; }
+  }
+  function tone(freq, start, dur, type, vol) {
+    if (!soundOn || !audio) return;
+    const t0 = audio.currentTime + start;
+    const o = audio.createOscillator();
+    const g = audio.createGain();
+    o.type = type || 'sine';
+    o.frequency.value = freq;
+    g.gain.setValueAtTime(0.0001, t0);
+    g.gain.exponentialRampToValueAtTime(vol || 0.2, t0 + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, t0 + dur);
+    o.connect(g).connect(audio.destination);
+    o.start(t0);
+    o.stop(t0 + dur + 0.05);
+  }
+  const sfx = {
+    star: function () { tone(1046, 0, 0.12, 'triangle', 0.18); tone(1568, 0.07, 0.18, 'triangle', 0.15); },
+    land: function () { [523, 659, 784, 1047].forEach(function (f, i) { tone(f, i * 0.1, 0.3, 'triangle', 0.22); }); },
+    bonk: function () { tone(160, 0, 0.15, 'square', 0.08); tone(110, 0.05, 0.2, 'sine', 0.2); },
+    win: function () { [523, 659, 784, 659, 784, 1047, 1319].forEach(function (f, i) { tone(f, i * 0.13, 0.35, 'triangle', 0.22); }); },
+    tap: function () { tone(660, 0, 0.08, 'sine', 0.12); }
+  };
+  function setEngine(on) {
+    if (!engineGain || !audio) return;
+    engineGain.gain.setTargetAtTime(on && soundOn ? 0.09 : 0, audio.currentTime, 0.08);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Sprite-urile planetelor (desenate o singură dată)
+  // ---------------------------------------------------------------------------
+  const SPRITE_SCALE = 3;
+  function circleClip(ctx, r) { ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.clip(); }
+  function ballGradient(ctx, r, light, dark) {
+    const g = ctx.createRadialGradient(-r * 0.35, -r * 0.35, r * 0.1, 0, 0, r);
+    g.addColorStop(0, light);
+    g.addColorStop(1, dark);
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  }
+  function shade(ctx, r) {
+    const g = ctx.createRadialGradient(-r * 0.3, -r * 0.3, r * 0.2, 0, 0, r * 1.02);
+    g.addColorStop(0, 'rgba(255,255,255,0.12)');
+    g.addColorStop(0.6, 'rgba(0,0,0,0)');
+    g.addColorStop(1, 'rgba(0,0,0,0.45)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, r, 0, Math.PI * 2); ctx.fill();
+  }
+  function craters(ctx, r, n, color, rand) {
+    ctx.fillStyle = color;
+    for (let i = 0; i < n; i++) {
+      const a = rand() * Math.PI * 2;
+      const d = Math.sqrt(rand()) * r * 0.85;
+      const cr = r * (0.06 + rand() * 0.14);
+      ctx.beginPath(); ctx.arc(Math.cos(a) * d, Math.sin(a) * d, cr, 0, Math.PI * 2); ctx.fill();
+    }
+  }
+  function bands(ctx, r, colors) {
+    const h = (r * 2) / colors.length;
+    colors.forEach(function (c, i) {
+      ctx.fillStyle = c;
+      ctx.beginPath();
+      const y = -r + i * h;
+      ctx.moveTo(-r, y);
+      for (let x = -r; x <= r; x += r / 8) ctx.lineTo(x, y + Math.sin(x / r * 6 + i) * h * 0.15);
+      ctx.lineTo(r, y + h + 1);
+      ctx.lineTo(-r, y + h + 1);
+      ctx.fill();
+    });
+  }
+  function ringHalf(ctx, r, front, tilt, sizes, colors) {
+    ctx.save();
+    ctx.rotate(tilt);
+    sizes.forEach(function (s, i) {
+      ctx.strokeStyle = colors[i];
+      ctx.lineWidth = r * s[1];
+      ctx.beginPath();
+      ctx.ellipse(0, 0, r * s[0], r * s[0] * 0.28, 0, front ? 0 : Math.PI, front ? Math.PI : Math.PI * 2);
+      ctx.stroke();
+    });
+    ctx.restore();
+  }
+
+  const PAINTERS = {
+    mercury: function (ctx, r, rand) { ballGradient(ctx, r, '#d9d4cc', '#7d7872'); ctx.save(); circleClip(ctx, r); craters(ctx, r, 12, 'rgba(90,85,80,0.45)', rand); ctx.restore(); },
+    venus: function (ctx, r) { ballGradient(ctx, r, '#fff1c1', '#d9a441'); ctx.save(); circleClip(ctx, r); bands(ctx, r, ['rgba(255,255,255,0.18)', 'rgba(210,150,60,0.25)', 'rgba(255,240,200,0.2)', 'rgba(200,140,50,0.2)', 'rgba(255,255,255,0.15)']); ctx.restore(); },
+    earth: function (ctx, r, rand) {
+      ballGradient(ctx, r, '#6fc3ff', '#1a5fb4');
+      ctx.save(); circleClip(ctx, r);
+      ctx.fillStyle = '#3fbf5f';
+      [[-0.4, -0.2, 0.42, 0.3], [0.35, 0.3, 0.35, 0.45], [0.1, -0.55, 0.3, 0.18], [-0.3, 0.55, 0.25, 0.16], [0.6, -0.3, 0.2, 0.25]].forEach(function (c) {
+        ctx.beginPath(); ctx.ellipse(c[0] * r, c[1] * r, c[2] * r, c[3] * r, rand() * 3, 0, Math.PI * 2); ctx.fill();
+      });
+      ctx.fillStyle = 'rgba(255,255,255,0.85)';
+      ctx.beginPath(); ctx.ellipse(0, -r * 0.95, r * 0.5, r * 0.18, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.beginPath(); ctx.ellipse(0, r * 0.97, r * 0.45, r * 0.15, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      for (let i = 0; i < 6; i++) { ctx.beginPath(); ctx.ellipse((rand() - 0.5) * r * 1.6, (rand() - 0.5) * r * 1.4, r * 0.3, r * 0.07, rand(), 0, Math.PI * 2); ctx.fill(); }
+      ctx.restore();
+    },
+    mars: function (ctx, r, rand) {
+      ballGradient(ctx, r, '#ff9a6b', '#a33a1c');
+      ctx.save(); circleClip(ctx, r);
+      craters(ctx, r, 7, 'rgba(120,40,20,0.35)', rand);
+      ctx.fillStyle = 'rgba(255,255,255,0.9)';
+      ctx.beginPath(); ctx.ellipse(0, -r * 0.97, r * 0.35, r * 0.14, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    },
+    jupiter: function (ctx, r) {
+      ballGradient(ctx, r, '#f3dcc0', '#b0835a');
+      ctx.save(); circleClip(ctx, r);
+      bands(ctx, r, ['#e9d3b4', '#c98f5a', '#f2e2c8', '#b57246', '#ead2ae', '#c4865a', '#f1dfc4', '#a8683e', '#e6cba6']);
+      ctx.fillStyle = '#c0452e';
+      ctx.beginPath(); ctx.ellipse(r * 0.35, r * 0.3, r * 0.22, r * 0.12, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    },
+    saturn: function (ctx, r) {
+      ringHalf(ctx, r, false, -0.35, [[2.05, 0.2], [1.65, 0.28]], ['rgba(214,190,140,0.75)', 'rgba(240,222,180,0.85)']);
+      ballGradient(ctx, r, '#fbe6b0', '#c19a55');
+      ctx.save(); circleClip(ctx, r);
+      bands(ctx, r, ['#f6e2ae', '#e4c887', '#f8e8bd', '#d8b56f', '#f3dca2', '#dcbd7c']);
+      ctx.restore();
+      shade(ctx, r);
+      ringHalf(ctx, r, true, -0.35, [[2.05, 0.2], [1.65, 0.28]], ['rgba(214,190,140,0.85)', 'rgba(240,222,180,0.95)']);
+    },
+    uranus: function (ctx, r) {
+      ringHalf(ctx, r, false, 1.35, [[1.6, 0.06]], ['rgba(200,240,255,0.6)']);
+      ballGradient(ctx, r, '#c8fbff', '#4fb8c9');
+      shade(ctx, r);
+      ringHalf(ctx, r, true, 1.35, [[1.6, 0.06]], ['rgba(200,240,255,0.8)']);
+    },
+    neptune: function (ctx, r) {
+      ballGradient(ctx, r, '#7fb2ff', '#1f3fae');
+      ctx.save(); circleClip(ctx, r);
+      bands(ctx, r, ['rgba(255,255,255,0.05)', 'rgba(20,40,140,0.25)', 'rgba(255,255,255,0.08)', 'rgba(20,40,140,0.2)']);
+      ctx.fillStyle = 'rgba(15,25,90,0.6)';
+      ctx.beginPath(); ctx.ellipse(-r * 0.25, r * 0.2, r * 0.2, r * 0.1, 0, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    },
+    moon: function (ctx, r, rand) { ballGradient(ctx, r, '#f2f2f2', '#8e8e98'); ctx.save(); circleClip(ctx, r); craters(ctx, r, 9, 'rgba(110,110,120,0.4)', rand); ctx.restore(); }
+  };
+
+  BODIES.forEach(function (b, i) {
+    const ext = b.ring ? 2.3 : b.thinRing ? 1.7 : 1.05;
+    const size = Math.ceil(b.r * ext * 2 * SPRITE_SCALE);
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    ctx.translate(size / 2, size / 2);
+    ctx.scale(SPRITE_SCALE, SPRITE_SCALE);
+    const rand = rng(1234 + i * 99);
+    PAINTERS[b.id](ctx, b.r, rand);
+    if (!b.ring && !b.thinRing) shade(ctx, b.r);
+    b.sprite = c;
+    b.ext = ext;
+    b.icon = c.toDataURL();
+  });
+
+  // Soarele are propriul sprite (strălucirea se desenează separat, pulsând).
+  (function () {
+    const size = Math.ceil(SUN.r * 2 * SPRITE_SCALE);
+    const c = document.createElement('canvas');
+    c.width = c.height = size;
+    const ctx = c.getContext('2d');
+    ctx.translate(size / 2, size / 2);
+    ctx.scale(SPRITE_SCALE, SPRITE_SCALE);
+    ballGradient(ctx, SUN.r, '#fff7c2', '#ff9d1c');
+    const rand = rng(7);
+    ctx.save(); circleClip(ctx, SUN.r);
+    ctx.fillStyle = 'rgba(255,120,20,0.25)';
+    for (let i = 0; i < 26; i++) {
+      ctx.beginPath();
+      ctx.arc((rand() - 0.5) * SUN.r * 2, (rand() - 0.5) * SUN.r * 2, SUN.r * (0.05 + rand() * 0.12), 0, Math.PI * 2);
+      ctx.fill();
+    }
+    ctx.restore();
+    SUN.sprite = c;
+    SUN.ext = 1;
+    SUN.x = 0; SUN.y = 0;
+  })();
+
+  // ---------------------------------------------------------------------------
+  // Lumea: asteroizi, stele de colectat, fundal
+  // ---------------------------------------------------------------------------
+  const worldRand = rng(42);
+  const asteroids = [];
+  for (let i = 0; i < 80; i++) {
+    const pts = [];
+    const n = 7 + Math.floor(worldRand() * 4);
+    for (let k = 0; k < n; k++) pts.push(0.7 + worldRand() * 0.3);
+    asteroids.push({
+      a: worldRand() * Math.PI * 2,
+      d: BELT[0] + worldRand() * (BELT[1] - BELT[0]),
+      s: 7 + worldRand() * 12,
+      spin: (worldRand() - 0.5) * 0.8,
+      rot: worldRand() * 6,
+      pts: pts,
+      shade: 110 + Math.floor(worldRand() * 50),
+      x: 0, y: 0
+    });
+  }
+
+  const collectibles = [];
+  function placeCollectible(c) {
+    for (let tries = 0; tries < 50; tries++) {
+      const a = Math.random() * Math.PI * 2;
+      const d = 260 + Math.random() * (WORLD_R - 400);
+      if (d > BELT[0] - 40 && d < BELT[1] + 40) continue;
+      c.x = Math.cos(a) * d;
+      c.y = Math.sin(a) * d;
+      const clear = BODIES.every(function (b) { return Math.hypot(b.x - c.x, b.y - c.y) > b.r * b.ext + 60; });
+      if (clear) break;
+    }
+    c.phase = Math.random() * 6;
+  }
+
+  const bgLayers = [0.08, 0.2, 0.4].map(function (factor, li) {
+    const rand = rng(100 + li);
+    const stars = [];
+    const count = [180, 110, 60][li];
+    for (let i = 0; i < count; i++) {
+      stars.push({ x: rand() * 1400, y: rand() * 1400, r: (0.5 + rand() * [0.8, 1.1, 1.6][li]), tw: rand() * 6 });
+    }
+    return { factor: factor, stars: stars };
+  });
+
+  // ---------------------------------------------------------------------------
+  // Starea jocului
+  // ---------------------------------------------------------------------------
+  const rocket = { x: 0, y: 0, vx: 0, vy: 0, angle: -Math.PI / 2, parked: null, parkAngle: 0 };
+  const cam = { x: 0, y: 0 };
+  const particles = [];
+  const game = {
+    mode: null,            // null (meniu) | 'missions' | 'free'
+    missions: [],
+    missionIdx: 0,
+    score: 0,
+    visited: {},
+    auto: false,
+    holding: false,
+    pointer: { x: 0, y: 0 },
+    keys: {},
+    thrusting: false,
+    everThrusted: false,
+    cooldowns: {},
+    ignoreBody: null,
+    shake: 0,
+    time: 0
+  };
+
+  function updateBodies(t) {
+    PLANETS.forEach(function (b) {
+      const a = b.a0 + t * Math.PI * 2 / b.period;
+      b.x = Math.cos(a) * b.orbit;
+      b.y = Math.sin(a) * b.orbit;
+    });
+    BODIES.forEach(function (b) {
+      if (!b.parent) return;
+      const p = byId[b.parent];
+      const a = b.a0 + t * Math.PI * 2 / b.period;
+      b.x = p.x + Math.cos(a) * b.orbit;
+      b.y = p.y + Math.sin(a) * b.orbit;
+    });
+    asteroids.forEach(function (s) {
+      const a = s.a + t * Math.PI * 2 / 600;
+      s.x = Math.cos(a) * s.d;
+      s.y = Math.sin(a) * s.d;
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Canvas
+  // ---------------------------------------------------------------------------
+  const canvas = $('space');
+  const ctx = canvas.getContext('2d');
+  let W = 0, H = 0, DPR = 1, zoom = 1;
+  function resize() {
+    DPR = Math.min(window.devicePixelRatio || 1, 2);
+    W = window.innerWidth;
+    H = window.innerHeight;
+    canvas.width = Math.round(W * DPR);
+    canvas.height = Math.round(H * DPR);
+    // Pe ecrane mici vedem mai puțin spațiu, ca planetele să nu fie minuscule.
+    zoom = Math.max(0.55, Math.min(1.1, Math.min(W, H) / 820));
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  function toScreen(x, y) { return [(x - cam.x) * zoom + W / 2, (y - cam.y) * zoom + H / 2]; }
+  function toWorld(sx, sy) { return [cam.x + (sx - W / 2) / zoom, cam.y + (sy - H / 2) / zoom]; }
+
+  // ---------------------------------------------------------------------------
+  // Control: ține degetul / mouse-ul unde vrei să zbori; sau săgețile
+  // ---------------------------------------------------------------------------
+  canvas.addEventListener('pointerdown', function (e) {
+    initAudio();
+    if (audio && audio.state === 'suspended') audio.resume();
+    game.holding = true;
+    game.pointer.x = e.clientX; game.pointer.y = e.clientY;
+    try { canvas.setPointerCapture(e.pointerId); } catch (err) { /* ignorăm */ }
+  });
+  canvas.addEventListener('pointermove', function (e) { game.pointer.x = e.clientX; game.pointer.y = e.clientY; });
+  ['pointerup', 'pointercancel', 'pointerleave'].forEach(function (ev) {
+    canvas.addEventListener(ev, function () { game.holding = false; });
+  });
+  window.addEventListener('keydown', function (e) {
+    const k = e.key;
+    if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'w', 'a', 's', 'd'].indexOf(k) >= 0) {
+      game.keys[k] = true;
+      initAudio();
+      e.preventDefault();
+    }
+  });
+  window.addEventListener('keyup', function (e) { game.keys[e.key] = false; });
+
+  function inputDirection() {
+    if (game.mode && !rocket.parked && !cardOpen()) {
+      let kx = 0, ky = 0;
+      if (game.keys.ArrowLeft || game.keys.a) kx -= 1;
+      if (game.keys.ArrowRight || game.keys.d) kx += 1;
+      if (game.keys.ArrowUp || game.keys.w) ky -= 1;
+      if (game.keys.ArrowDown || game.keys.s) ky += 1;
+      if (kx || ky) { const l = Math.hypot(kx, ky); return [kx / l, ky / l]; }
+      if (game.holding) {
+        const w = toWorld(game.pointer.x, game.pointer.y);
+        const dx = w[0] - rocket.x, dy = w[1] - rocket.y;
+        const l = Math.hypot(dx, dy);
+        if (l > 24 / zoom) return [dx / l, dy / l];
+      }
+      if (game.auto && currentTarget()) return autopilotDirection(currentTarget());
+    }
+    return null;
+  }
+
+  // Pilotul automat ocolește Soarele, celelalte planete și asteroizii din drum.
+  function autopilotDirection(t) {
+    let dx = t.x - rocket.x, dy = t.y - rocket.y;
+    const dist = Math.hypot(dx, dy);
+    dx /= dist; dy /= dist;
+    const obstacles = [{ x: SUN.x, y: SUN.y, safe: SUN.r + 220, reach: dist }];
+    BODIES.forEach(function (b) {
+      if (b !== t) obstacles.push({ x: b.x, y: b.y, safe: b.r + ROCKET_R + 45, reach: Math.min(dist, 500) });
+    });
+    asteroids.forEach(function (s) {
+      if (Math.abs(s.x - rocket.x) < 260 && Math.abs(s.y - rocket.y) < 260) {
+        obstacles.push({ x: s.x, y: s.y, safe: s.s + ROCKET_R + 26, reach: Math.min(dist, 220) });
+      }
+    });
+    let sx = dx, sy = dy;
+    obstacles.forEach(function (o) {
+      const ox = o.x - rocket.x, oy = o.y - rocket.y;
+      const along = ox * dx + oy * dy;
+      if (along <= 0 || along > o.reach) return;
+      const px = ox - along * dx, py = oy - along * dy;
+      const perp = Math.hypot(px, py);
+      if (perp >= o.safe) return;
+      let ax = -px, ay = -py;
+      let al = Math.hypot(ax, ay);
+      if (al < 1) { ax = -dy; ay = dx; al = 1; }
+      const k = (o.safe - perp) / o.safe * 2.5;
+      sx += ax / al * k; sy += ay / al * k;
+    });
+    const sl = Math.hypot(sx, sy);
+    dx = sx / sl; dy = sy / sl;
+    // Viteza dorită scade când ne apropiem; accelerăm spre diferența dintre viteza
+    // dorită și cea actuală, așa că racheta frânează și nu se rotește în jurul țintei.
+    const want = Math.min(MAX_SPEED, 90 + Math.max(0, dist - t.r) * 1.5);
+    const ex = dx * want - rocket.vx, ey = dy * want - rocket.vy;
+    const el = Math.hypot(ex, ey);
+    if (el < 15) return null;
+    return [ex / el, ey / el];
+  }
+
+  function currentTarget() {
+    return game.mode === 'missions' ? game.missions[game.missionIdx] || null : null;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Fizica
+  // ---------------------------------------------------------------------------
+  function toast(text) {
+    const t = $('toast');
+    t.textContent = text;
+    t.hidden = false;
+    clearTimeout(toast.timer);
+    toast.timer = setTimeout(function () { t.hidden = true; }, 2400);
+  }
+
+  function coolingDown(key, seconds) {
+    if (game.cooldowns[key] && game.cooldowns[key] > game.time) return true;
+    game.cooldowns[key] = game.time + seconds;
+    return false;
+  }
+
+  function step(dt) {
+    game.time += dt;
+    updateBodies(game.time);
+
+    if (rocket.parked) {
+      const b = rocket.parked;
+      rocket.x = b.x + Math.cos(rocket.parkAngle) * (b.r + ROCKET_R);
+      rocket.y = b.y + Math.sin(rocket.parkAngle) * (b.r + ROCKET_R);
+      rocket.vx = rocket.vy = 0;
+      rocket.angle = rocket.parkAngle;
+      game.thrusting = false;
+    } else if (game.mode) {
+      const dir = inputDirection();
+      game.thrusting = !!dir;
+      if (dir) {
+        if (!game.everThrusted) { game.everThrusted = true; $('hint').hidden = true; }
+        rocket.vx += dir[0] * ACCEL * dt;
+        rocket.vy += dir[1] * ACCEL * dt;
+        spawnFlame(dir);
+      } else {
+        const damp = Math.pow(0.35, dt);
+        rocket.vx *= damp; rocket.vy *= damp;
+      }
+      const sp = Math.hypot(rocket.vx, rocket.vy);
+      if (sp > MAX_SPEED) { rocket.vx *= MAX_SPEED / sp; rocket.vy *= MAX_SPEED / sp; }
+      rocket.x += rocket.vx * dt;
+      rocket.y += rocket.vy * dt;
+
+      const want = dir ? Math.atan2(dir[1], dir[0]) : sp > 30 ? Math.atan2(rocket.vy, rocket.vx) : rocket.angle;
+      let da = want - rocket.angle;
+      while (da > Math.PI) da -= Math.PI * 2;
+      while (da < -Math.PI) da += Math.PI * 2;
+      rocket.angle += da * Math.min(1, dt * 8);
+
+      collide();
+    }
+    setEngine(game.thrusting);
+
+    // Stelele de colectat
+    if (game.mode) {
+      collectibles.forEach(function (c) {
+        if (Math.hypot(c.x - rocket.x, c.y - rocket.y) < 34) {
+          game.score++;
+          updateScore();
+          sfx.star();
+          burst(c.x, c.y, '#ffd166', 14);
+          placeCollectible(c);
+        }
+      });
+    }
+
+    // Particule
+    for (let i = particles.length - 1; i >= 0; i--) {
+      const p = particles[i];
+      p.life -= dt;
+      if (p.life <= 0) { particles.splice(i, 1); continue; }
+      p.x += p.vx * dt; p.y += p.vy * dt;
+      p.vx *= 0.96; p.vy *= 0.96;
+    }
+
+    // Camera urmărește racheta
+    const k = Math.min(1, dt * 4);
+    cam.x += (rocket.x - cam.x) * k;
+    cam.y += (rocket.y - cam.y) * k;
+    game.shake = Math.max(0, game.shake - dt * 3);
+  }
+
+  function collide() {
+    // Soarele e prea fierbinte
+    const ds = Math.hypot(rocket.x - SUN.x, rocket.y - SUN.y);
+    if (ds < SUN.r + 70) {
+      const nx = (rocket.x - SUN.x) / ds, ny = (rocket.y - SUN.y) / ds;
+      rocket.x = SUN.x + nx * (SUN.r + 70);
+      rocket.y = SUN.y + ny * (SUN.r + 70);
+      rocket.vx = nx * 320; rocket.vy = ny * 320;
+      game.shake = 1;
+      if (!coolingDown('sun', 4)) { toast('🔥 Too hot! Fly away from the Sun!'); speak('Too hot! Let\'s fly away from the Sun!'); }
+    }
+
+    // Marginea sistemului solar
+    const dr = Math.hypot(rocket.x, rocket.y);
+    if (dr > WORLD_R) {
+      rocket.x *= WORLD_R / dr; rocket.y *= WORLD_R / dr;
+      rocket.vx = -rocket.x / dr * 200; rocket.vy = -rocket.y / dr * 200;
+      if (!coolingDown('edge', 5)) { toast('🌌 This is the edge of our solar system!'); speak('This is the edge of our solar system. Let\'s turn back!'); }
+    }
+
+    // Asteroizii te împing înapoi (fără pedeapsă)
+    asteroids.forEach(function (s) {
+      const d = Math.hypot(rocket.x - s.x, rocket.y - s.y);
+      if (d < s.s + ROCKET_R) {
+        const nx = (rocket.x - s.x) / d, ny = (rocket.y - s.y) / d;
+        rocket.x = s.x + nx * (s.s + ROCKET_R + 1);
+        rocket.y = s.y + ny * (s.s + ROCKET_R + 1);
+        const dot = rocket.vx * nx + rocket.vy * ny;
+        if (dot < 0) { rocket.vx -= 1.6 * dot * nx; rocket.vy -= 1.6 * dot * ny; }
+        game.shake = 0.6;
+        sfx.bonk();
+        burst(s.x + nx * s.s, s.y + ny * s.s, '#b9b3aa', 6);
+        if (!coolingDown('asteroid', 8)) toast('💥 Bonk! Watch out for asteroids!');
+      }
+    });
+
+    // Planetele
+    if (game.ignoreBody) {
+      const b = game.ignoreBody;
+      if (Math.hypot(rocket.x - b.x, rocket.y - b.y) > b.r + 90) game.ignoreBody = null;
+    }
+    BODIES.forEach(function (b) {
+      if (b === game.ignoreBody) return;
+      const d = Math.hypot(rocket.x - b.x, rocket.y - b.y);
+      if (d >= b.r + ROCKET_R) return;
+      const target = currentTarget();
+      if (game.mode === 'free' || b === target) { land(b); return; }
+      // Altă planetă decât ținta: o spunem și împingem racheta ușor înapoi.
+      const nx = (rocket.x - b.x) / d, ny = (rocket.y - b.y) / d;
+      rocket.x = b.x + nx * (b.r + ROCKET_R + 2);
+      rocket.y = b.y + ny * (b.r + ROCKET_R + 2);
+      rocket.vx = nx * 180; rocket.vy = ny * 180;
+      if (target && !coolingDown('wrong-' + b.id, 5)) {
+        toast('That is ' + label(b) + '. Find ' + label(target) + '!');
+        speak('This is ' + b.name + '. We are looking for ' + target.name + '!');
+      }
+    });
+  }
+
+  // ---------------------------------------------------------------------------
+  // Aterizare și carduri
+  // ---------------------------------------------------------------------------
+  function cardOpen() { return !$('card').hidden || !$('end').hidden; }
+
+  function land(b) {
+    rocket.parked = b;
+    rocket.parkAngle = Math.atan2(rocket.y - b.y, rocket.x - b.x);
+    rocket.vx = rocket.vy = 0;
+    game.holding = false;
+    const first = !game.visited[b.id];
+    game.visited[b.id] = true;
+    let reward = 0;
+    if (game.mode === 'missions') reward = 3;
+    else if (first) reward = 2;
+    game.score += reward;
+    updateScore();
+    sfx.land();
+    burst(rocket.x, rocket.y, '#3ee0a5', 30);
+    confetti(game.mode === 'missions' ? 140 : 70);
+    setTimeout(function () { showCard(b, reward); }, 450);
+  }
+
+  function showCard(b, reward) {
+    $('card-img').src = b.icon;
+    $('card-img').alt = label(b);
+    $('card-title').textContent = label(b);
+    $('card-kicker').textContent = reward ? 'You landed! +' + reward + ' ⭐' : 'You landed!';
+    const list = $('card-facts');
+    list.innerHTML = '';
+    b.facts.forEach(function (f) {
+      const li = document.createElement('li');
+      li.textContent = f;
+      list.appendChild(li);
+    });
+    const last = game.mode === 'missions' && game.missionIdx >= game.missions.length - 1;
+    $('card-btn').textContent = game.mode === 'missions' ? (last ? 'Finish 🏁' : 'Next mission 🚀') : 'Keep flying 🚀';
+    $('card').hidden = false;
+    speak('You landed on ' + b.name + '! ' + b.facts.join(' '));
+  }
+
+  $('card-btn').addEventListener('click', function () {
+    sfx.tap();
+    $('card').hidden = true;
+    if (game.mode === 'missions') {
+      game.missionIdx++;
+      // După ultima misiune racheta rămâne acasă, pe Pământ.
+      if (game.missionIdx >= game.missions.length) { finishMissions(); return; }
+      takeOff();
+      announceMission();
+    } else {
+      takeOff();
+      speak('Where shall we fly next?');
+    }
+  });
+
+  function takeOff() {
+    const b = rocket.parked;
+    if (!b) return;
+    rocket.parked = null;
+    const nx = Math.cos(rocket.parkAngle), ny = Math.sin(rocket.parkAngle);
+    rocket.x = b.x + nx * (b.r + ROCKET_R + 6);
+    rocket.y = b.y + ny * (b.r + ROCKET_R + 6);
+    rocket.vx = nx * 240; rocket.vy = ny * 240;
+    game.ignoreBody = b;
+  }
+
+  // ---------------------------------------------------------------------------
+  // Moduri de joc
+  // ---------------------------------------------------------------------------
+  function startGame(mode) {
+    initAudio();
+    game.mode = mode;
+    game.score = 0;
+    game.visited = { earth: true };
+    game.auto = false;
+    game.everThrusted = false;
+    game.cooldowns = {};
+    $('auto-btn').classList.remove('on');
+    $('auto-btn').hidden = mode !== 'missions';
+    $('start').hidden = true;
+    $('end').hidden = true;
+    $('card').hidden = true;
+    $('hud').hidden = false;
+    $('hint').hidden = false;
+    updateScore();
+
+    // Plecăm de pe Pământ.
+    const earth = byId.earth;
+    rocket.parked = earth;
+    rocket.parkAngle = Math.atan2(earth.y, earth.x);
+    takeOff();
+    rocket.vx = rocket.vy = 0;
+    cam.x = rocket.x; cam.y = rocket.y;
+
+    if (mode === 'missions') {
+      const others = shuffle(BODIES.filter(function (b) { return b.id !== 'earth'; }));
+      game.missions = others.concat([earth]); // la final ne întoarcem acasă
+      game.missionIdx = 0;
+      announceMission();
+    } else {
+      $('mission-img').src = byId.saturn.icon;
+      $('mission-small').textContent = 'Free flight';
+      $('mission-big').textContent = 'Visit any planet!';
+      speak('Free flight! Fly anywhere you like, and land on any planet.');
+    }
+  }
+
+  function announceMission() {
+    const t = currentTarget();
+    const home = game.missionIdx === game.missions.length - 1;
+    $('mission-img').src = t.icon;
+    $('mission-small').textContent = 'Mission ' + (game.missionIdx + 1) + ' of ' + game.missions.length;
+    $('mission-big').textContent = home ? 'Fly home to Earth!' : 'Fly to ' + label(t) + '!';
+    speak(home ? 'Great job, astronaut! Now fly back home to Earth!' : 'Mission ' + (game.missionIdx + 1) + '. Fly to ' + t.name + '! Follow the yellow arrow.');
+  }
+
+  function finishMissions() {
+    const total = loadTotal() + game.score;
+    saveTotal(total);
+    $('end-text').textContent = 'You visited every planet and came back home!';
+    $('end-stars').textContent = '⭐ ' + game.score + ' stars this trip · ' + total + ' in total';
+    $('end').hidden = false;
+    sfx.win();
+    confetti(260);
+    speak('Hooray! Space Explorer Vladimir, you visited every planet and came back home! You collected ' + game.score + ' stars!');
+  }
+
+  function goMenu() {
+    if (game.mode === 'free' && game.score) saveTotal(loadTotal() + game.score);
+    game.mode = null;
+    game.score = 0;
+    game.holding = false;
+    rocket.parked = null;
+    $('hud').hidden = true;
+    $('card').hidden = true;
+    $('end').hidden = true;
+    $('start').hidden = false;
+    $('total').textContent = '⭐ ' + loadTotal() + ' stars collected';
+    if ('speechSynthesis' in window) speechSynthesis.cancel();
+    setEngine(false);
+  }
+
+  function updateScore() { $('score').textContent = '⭐ ' + game.score; }
+
+  document.querySelectorAll('.mode-btn').forEach(function (b) {
+    b.addEventListener('click', function () { initAudio(); sfx.tap(); startGame(b.dataset.mode); });
+  });
+  $('home-btn').addEventListener('click', function () {
+    // Stelele din misiunile neterminate se păstrează și ele.
+    if (game.mode === 'missions' && game.score) saveTotal(loadTotal() + game.score);
+    game.score = 0;
+    goMenu();
+  });
+  $('menu-btn').addEventListener('click', function () { game.score = 0; goMenu(); });
+  $('again-btn').addEventListener('click', function () { sfx.tap(); startGame('missions'); });
+  $('say-btn').addEventListener('click', function () { if (lastSpoken) speak(lastSpoken); });
+  $('sound-btn').addEventListener('click', function () {
+    soundOn = !soundOn;
+    $('sound-btn').textContent = soundOn ? '🔊' : '🔇';
+    if (!soundOn && 'speechSynthesis' in window) speechSynthesis.cancel();
+    setEngine(false);
+  });
+  $('auto-btn').addEventListener('click', function () {
+    game.auto = !game.auto;
+    $('auto-btn').classList.toggle('on', game.auto);
+    toast(game.auto ? '🧭 Autopilot ON' : '🧭 Autopilot OFF');
+    speak(game.auto ? 'Autopilot on! The rocket flies by itself.' : 'Autopilot off. You are the pilot!');
+  });
+
+  // ---------------------------------------------------------------------------
+  // Efecte
+  // ---------------------------------------------------------------------------
+  function spawnFlame(dir) {
+    for (let i = 0; i < 2; i++) {
+      const bx = rocket.x - Math.cos(rocket.angle) * ROCKET_R * 1.3;
+      const by = rocket.y - Math.sin(rocket.angle) * ROCKET_R * 1.3;
+      particles.push({
+        x: bx, y: by,
+        vx: -dir[0] * (120 + Math.random() * 80) + (Math.random() - 0.5) * 60 + rocket.vx * 0.5,
+        vy: -dir[1] * (120 + Math.random() * 80) + (Math.random() - 0.5) * 60 + rocket.vy * 0.5,
+        life: 0.5, max: 0.5, size: 5 + Math.random() * 4,
+        color: Math.random() < 0.5 ? '#ffb347' : '#ff6b3a'
+      });
+    }
+  }
+  function burst(x, y, color, n) {
+    for (let i = 0; i < n; i++) {
+      const a = Math.random() * Math.PI * 2, s = 60 + Math.random() * 160;
+      particles.push({ x: x, y: y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.8, max: 0.8, size: 3 + Math.random() * 4, color: color });
+    }
+  }
+
+  const confettiCanvas = $('confetti');
+  const cctx = confettiCanvas.getContext('2d');
+  let pieces = [];
+  let confettiRunning = false;
+  function confetti(amount) {
+    confettiCanvas.width = W * DPR;
+    confettiCanvas.height = H * DPR;
+    cctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const colors = ['#ff7b3a', '#8f7cff', '#3ee0a5', '#ffd166', '#5fb7e5', '#ff5da2'];
+    for (let i = 0; i < amount; i++) {
+      pieces.push({
+        x: W / 2 + (Math.random() - 0.5) * W * 0.4, y: H * 0.4,
+        vx: (Math.random() - 0.5) * 14, vy: -Math.random() * 14 - 4,
+        r: Math.random() * 6 + 4, rot: Math.random() * 6, vr: (Math.random() - 0.5) * 0.4,
+        c: colors[Math.floor(Math.random() * colors.length)], life: 0
+      });
+    }
+    if (!confettiRunning) { confettiRunning = true; requestAnimationFrame(stepConfetti); }
+  }
+  function stepConfetti() {
+    cctx.clearRect(0, 0, W, H);
+    pieces = pieces.filter(function (p) { return p.y < H + 20 && p.life < 240; });
+    pieces.forEach(function (p) {
+      p.vy += 0.35; p.vx *= 0.99; p.x += p.vx; p.y += p.vy; p.rot += p.vr; p.life++;
+      cctx.save(); cctx.translate(p.x, p.y); cctx.rotate(p.rot);
+      cctx.fillStyle = p.c; cctx.fillRect(-p.r / 2, -p.r / 2, p.r, p.r * 0.6);
+      cctx.restore();
+    });
+    if (pieces.length) requestAnimationFrame(stepConfetti);
+    else { confettiRunning = false; cctx.clearRect(0, 0, W, H); }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Desenarea
+  // ---------------------------------------------------------------------------
+  function drawBackground() {
+    const g = ctx.createRadialGradient(W * 0.3, H * 0.2, 0, W * 0.5, H * 0.5, Math.max(W, H));
+    g.addColorStop(0, '#1b1650');
+    g.addColorStop(0.5, '#0b1033');
+    g.addColorStop(1, '#050716');
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+    const tile = 1400;
+    bgLayers.forEach(function (layer) {
+      const ox = ((-cam.x * layer.factor) % tile + tile) % tile;
+      const oy = ((-cam.y * layer.factor) % tile + tile) % tile;
+      layer.stars.forEach(function (s) {
+        const tw = 0.6 + 0.4 * Math.sin(game.time * 2 + s.tw);
+        ctx.fillStyle = 'rgba(255,255,255,' + (0.35 + 0.5 * tw * layer.factor * 2).toFixed(2) + ')';
+        for (let x = s.x + ox - tile; x < W; x += tile) {
+          for (let y = s.y + oy - tile; y < H; y += tile) {
+            if (x < -4 || y < -4) continue;
+            ctx.beginPath(); ctx.arc(x, y, s.r, 0, Math.PI * 2); ctx.fill();
+          }
+        }
+      });
+    });
+  }
+
+  function onScreen(sx, sy, pad) { return sx > -pad && sx < W + pad && sy > -pad && sy < H + pad; }
+
+  function drawOrbits() {
+    const c = toScreen(0, 0);
+    ctx.lineWidth = 1.5;
+    ctx.strokeStyle = 'rgba(160,170,255,0.16)';
+    PLANETS.forEach(function (b) {
+      ctx.beginPath(); ctx.arc(c[0], c[1], b.orbit * zoom, 0, Math.PI * 2); ctx.stroke();
+    });
+  }
+
+  function drawSun() {
+    const p = toScreen(SUN.x, SUN.y);
+    const r = SUN.r * zoom;
+    if (!onScreen(p[0], p[1], r * 3)) return;
+    const pulse = 1 + 0.05 * Math.sin(game.time * 2);
+    const g = ctx.createRadialGradient(p[0], p[1], r * 0.8, p[0], p[1], r * 2.6 * pulse);
+    g.addColorStop(0, 'rgba(255,200,80,0.55)');
+    g.addColorStop(1, 'rgba(255,120,20,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(p[0], p[1], r * 2.6 * pulse, 0, Math.PI * 2); ctx.fill();
+    ctx.drawImage(SUN.sprite, p[0] - r, p[1] - r, r * 2, r * 2);
+  }
+
+  function drawBody(b) {
+    const p = toScreen(b.x, b.y);
+    const half = b.r * b.ext * zoom;
+    if (!onScreen(p[0], p[1], half + 40)) return;
+    ctx.drawImage(b.sprite, p[0] - half, p[1] - half, half * 2, half * 2);
+    ctx.font = '700 16px "Baloo 2", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = 'rgba(5,7,22,0.85)';
+    ctx.fillStyle = '#f4f1ff';
+    const ly = p[1] + b.r * zoom + 20;
+    ctx.strokeText(label(b), p[0], ly);
+    ctx.fillText(label(b), p[0], ly);
+  }
+
+  function drawAsteroids() {
+    asteroids.forEach(function (s) {
+      const p = toScreen(s.x, s.y);
+      const r = s.s * zoom;
+      if (!onScreen(p[0], p[1], r + 4)) return;
+      ctx.save();
+      ctx.translate(p[0], p[1]);
+      ctx.rotate(s.rot + game.time * s.spin);
+      ctx.fillStyle = 'rgb(' + s.shade + ',' + (s.shade - 8) + ',' + (s.shade - 18) + ')';
+      ctx.beginPath();
+      s.pts.forEach(function (k, i) {
+        const a = i / s.pts.length * Math.PI * 2;
+        const fn = i ? 'lineTo' : 'moveTo';
+        ctx[fn](Math.cos(a) * r * k, Math.sin(a) * r * k);
+      });
+      ctx.closePath();
+      ctx.fill();
+      ctx.fillStyle = 'rgba(0,0,0,0.25)';
+      ctx.beginPath(); ctx.arc(r * 0.2, r * 0.1, r * 0.25, 0, Math.PI * 2); ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function starPath(c, x, y, r) {
+    c.beginPath();
+    for (let i = 0; i < 10; i++) {
+      const a = -Math.PI / 2 + i * Math.PI / 5;
+      const rr = i % 2 ? r * 0.45 : r;
+      c.lineTo(x + Math.cos(a) * rr, y + Math.sin(a) * rr);
+    }
+    c.closePath();
+  }
+
+  function drawCollectibles() {
+    collectibles.forEach(function (c) {
+      const p = toScreen(c.x, c.y);
+      if (!onScreen(p[0], p[1], 30)) return;
+      const r = (11 + Math.sin(game.time * 4 + c.phase) * 2) * Math.max(zoom, 0.8);
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,209,102,0.9)';
+      ctx.shadowBlur = 14;
+      ctx.fillStyle = '#ffd166';
+      starPath(ctx, p[0], p[1], r);
+      ctx.fill();
+      ctx.restore();
+    });
+  }
+
+  function drawParticles() {
+    particles.forEach(function (p) {
+      const s = toScreen(p.x, p.y);
+      const a = p.life / p.max;
+      ctx.globalAlpha = a;
+      ctx.fillStyle = p.color;
+      ctx.beginPath(); ctx.arc(s[0], s[1], p.size * zoom * (0.5 + a * 0.5), 0, Math.PI * 2); ctx.fill();
+    });
+    ctx.globalAlpha = 1;
+  }
+
+  function drawRocket() {
+    const p = toScreen(rocket.x, rocket.y);
+    const s = ROCKET_R * zoom * 1.25;
+    ctx.save();
+    ctx.translate(p[0], p[1]);
+    ctx.rotate(rocket.angle + Math.PI / 2); // racheta e desenată cu vârful în sus
+    if (game.thrusting) {
+      const f = 1 + Math.random() * 0.5;
+      ctx.fillStyle = '#ffb347';
+      ctx.beginPath(); ctx.moveTo(-s * 0.45, s * 1.05); ctx.lineTo(0, s * (1.9 + f * 0.6)); ctx.lineTo(s * 0.45, s * 1.05); ctx.fill();
+      ctx.fillStyle = '#fff3b0';
+      ctx.beginPath(); ctx.moveTo(-s * 0.22, s * 1.05); ctx.lineTo(0, s * (1.45 + f * 0.3)); ctx.lineTo(s * 0.22, s * 1.05); ctx.fill();
+    }
+    // aripioare
+    ctx.fillStyle = '#ff4d5e';
+    ctx.beginPath(); ctx.moveTo(-s * 0.5, s * 0.3); ctx.lineTo(-s * 1.0, s * 1.1); ctx.lineTo(-s * 0.45, s * 0.95); ctx.fill();
+    ctx.beginPath(); ctx.moveTo(s * 0.5, s * 0.3); ctx.lineTo(s * 1.0, s * 1.1); ctx.lineTo(s * 0.45, s * 0.95); ctx.fill();
+    // corp
+    const g = ctx.createLinearGradient(-s * 0.55, 0, s * 0.55, 0);
+    g.addColorStop(0, '#c9cde8'); g.addColorStop(0.45, '#ffffff'); g.addColorStop(1, '#aeb3d6');
+    ctx.fillStyle = g;
+    ctx.beginPath();
+    ctx.moveTo(0, -s * 1.5);
+    ctx.bezierCurveTo(s * 0.75, -s * 0.9, s * 0.6, s * 0.6, s * 0.45, s * 1.05);
+    ctx.lineTo(-s * 0.45, s * 1.05);
+    ctx.bezierCurveTo(-s * 0.6, s * 0.6, -s * 0.75, -s * 0.9, 0, -s * 1.5);
+    ctx.fill();
+    // vârf
+    ctx.fillStyle = '#ff4d5e';
+    ctx.beginPath();
+    ctx.moveTo(0, -s * 1.5);
+    ctx.bezierCurveTo(s * 0.42, -s * 1.15, s * 0.5, -s * 0.95, s * 0.55, -s * 0.8);
+    ctx.lineTo(-s * 0.55, -s * 0.8);
+    ctx.bezierCurveTo(-s * 0.5, -s * 0.95, -s * 0.42, -s * 1.15, 0, -s * 1.5);
+    ctx.fill();
+    // hublou
+    ctx.fillStyle = '#3a6df0';
+    ctx.strokeStyle = '#8f7cff';
+    ctx.lineWidth = Math.max(1.5, s * 0.1);
+    ctx.beginPath(); ctx.arc(0, -s * 0.2, s * 0.3, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = 'rgba(255,255,255,0.7)';
+    ctx.beginPath(); ctx.arc(-s * 0.1, -s * 0.3, s * 0.09, 0, Math.PI * 2); ctx.fill();
+    // fereastra pe corp: litera V
+    ctx.fillStyle = '#ff4d5e';
+    ctx.font = '800 ' + Math.round(s * 0.55) + 'px "Baloo 2", system-ui, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('V', 0, s * 0.72);
+    ctx.restore();
+  }
+
+  function drawTargetMarker() {
+    const t = currentTarget();
+    if (!t || rocket.parked) return;
+    const p = toScreen(t.x, t.y);
+    const r = t.r * zoom;
+    const margin = 70;
+    if (p[0] > margin && p[0] < W - margin && p[1] > margin + 40 && p[1] < H - margin) {
+      const pulse = 1 + 0.15 * Math.sin(game.time * 5);
+      ctx.strokeStyle = '#ffd166';
+      ctx.lineWidth = 4;
+      ctx.setLineDash([10, 8]);
+      ctx.beginPath(); ctx.arc(p[0], p[1], (r + 18) * pulse, 0, Math.PI * 2); ctx.stroke();
+      ctx.setLineDash([]);
+      return;
+    }
+    // Săgeata de la marginea ecranului arată direcția spre țintă.
+    const cx = W / 2, cy = H / 2;
+    const a = Math.atan2(p[1] - cy, p[0] - cx);
+    const ex = (W / 2 - margin), ey = (H / 2 - margin - 20);
+    const k = Math.min(ex / Math.abs(Math.cos(a) || 1e-6), ey / Math.abs(Math.sin(a) || 1e-6));
+    const ax = cx + Math.cos(a) * k, ay = cy + 20 + Math.sin(a) * k;
+    const bounce = 6 * Math.sin(game.time * 6);
+    ctx.save();
+    ctx.translate(ax + Math.cos(a) * bounce, ay + Math.sin(a) * bounce);
+    ctx.rotate(a);
+    ctx.fillStyle = '#ffd166';
+    ctx.strokeStyle = '#7a4d00';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(34, 0); ctx.lineTo(4, -20); ctx.lineTo(4, 20); ctx.closePath(); ctx.fill(); ctx.stroke();
+    ctx.restore();
+    const iconR = 20;
+    const ix = ax - Math.cos(a) * 16, iy = ay - Math.sin(a) * 16;
+    ctx.fillStyle = 'rgba(18,24,66,0.85)';
+    ctx.beginPath(); ctx.arc(ix, iy, iconR + 6, 0, Math.PI * 2); ctx.fill();
+    const ext = t.ext;
+    ctx.drawImage(t.sprite, ix - iconR * ext, iy - iconR * ext, iconR * ext * 2, iconR * ext * 2);
+  }
+
+  function drawMiniMap() {
+    const R = Math.min(62, Math.min(W, H) * 0.12);
+    const cx = 12 + R, cy = H - 12 - R;
+    const s = R / WORLD_R;
+    ctx.save();
+    ctx.fillStyle = 'rgba(18,24,66,0.8)';
+    ctx.strokeStyle = 'rgba(255,255,255,0.18)';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(cx, cy, R + 4, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(160,170,255,0.18)';
+    ctx.lineWidth = 1;
+    PLANETS.forEach(function (b) { ctx.beginPath(); ctx.arc(cx, cy, b.orbit * s, 0, Math.PI * 2); ctx.stroke(); });
+    ctx.fillStyle = '#ffb23f';
+    ctx.beginPath(); ctx.arc(cx, cy, 4, 0, Math.PI * 2); ctx.fill();
+    const t = currentTarget();
+    PLANETS.forEach(function (b) {
+      ctx.drawImage(b.sprite, cx + b.x * s - 4 * b.ext, cy + b.y * s - 4 * b.ext, 8 * b.ext, 8 * b.ext);
+    });
+    if (t) {
+      ctx.strokeStyle = '#ffd166';
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(cx + t.x * s, cy + t.y * s, 7 + Math.sin(game.time * 6) * 1.5, 0, Math.PI * 2); ctx.stroke();
+    }
+    ctx.fillStyle = '#ffffff';
+    ctx.beginPath(); ctx.arc(cx + rocket.x * s, cy + rocket.y * s, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.restore();
+  }
+
+  function render() {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    drawBackground();
+    if (game.shake > 0) {
+      const m = game.shake * 6;
+      ctx.translate((Math.random() - 0.5) * m, (Math.random() - 0.5) * m);
+    }
+    drawOrbits();
+    drawSun();
+    drawAsteroids();
+    drawCollectibles();
+    PLANETS.forEach(drawBody);
+    drawBody(byId.moon);
+    drawParticles();
+    if (game.mode) drawRocket();
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (game.mode) { drawTargetMarker(); drawMiniMap(); }
+  }
+
+  // ---------------------------------------------------------------------------
+  // Bucla principală
+  // ---------------------------------------------------------------------------
+  updateBodies(0);
+  for (let i = 0; i < 36; i++) { const c = {}; placeCollectible(c); collectibles.push(c); }
+  // În meniu camera plutește încet prin sistemul solar.
+  let last = performance.now();
+  function frame(now) {
+    const dt = Math.min(0.05, (now - last) / 1000);
+    last = now;
+    if (!game.mode) {
+      const a = game.time * 0.05;
+      rocket.x = Math.cos(a) * 700; rocket.y = Math.sin(a) * 700;
+    }
+    step(dt);
+    render();
+    requestAnimationFrame(frame);
+  }
+  $('total').textContent = '⭐ ' + loadTotal() + ' stars collected';
+  requestAnimationFrame(frame);
+
+  // Pentru teste automate
+  window.__vsa = { game: game, rocket: rocket, byId: byId, land: land };
+})();
+</script>
+</body>
+</html>
