@@ -102,13 +102,25 @@
   // ---------------------------------------------------------------------------
   // Voce (citește cu voce tare, în engleză)
   // ---------------------------------------------------------------------------
+  // Browserele nu spun genul vocii, așa că recunoaștem vocile feminine după nume
+  // (Chrome, Edge/Windows, Apple). Dacă nu găsim niciuna, vocea e mai subțire (pitch mai mare).
+  const FEMALE = /female|woman|libby|sonia|maisie|hazel|susan|zira|jenny|aria|ava|emma|michelle|ana\b|natasha|clara|samantha|karen|moira|tessa|serena|kate|fiona|victoria|allison|susan|martha|catherine|nicky|joanna|salli|kimberly|kendra|amy|olivia/i;
+  const MALE = /\bmale|guy|ryan|thomas|daniel|george|alex|fred|arthur|oliver|david|mark|james|william|christopher|eric|roger|steffan|brian|matthew|joey|justin/i;
   let enVoice = null;
+  let enVoiceFemale = false;
   function pickVoice() {
     if (!('speechSynthesis' in window)) return;
     const voices = speechSynthesis.getVoices();
     const en = voices.filter(function (v) { return /^en(-|_|$)/i.test(v.lang); });
-    enVoice = en.find(function (v) { return /en[-_]GB/i.test(v.lang); }) ||
-      en.find(function (v) { return /en[-_]US/i.test(v.lang); }) || en[0] || null;
+    const female = en.filter(function (v) { return FEMALE.test(v.name) && !/\bmale\b/i.test(v.name); });
+    const notMale = en.filter(function (v) { return !MALE.test(v.name); });
+    function prefer(list) {
+      return list.find(function (v) { return /en[-_]GB/i.test(v.lang); }) ||
+        list.find(function (v) { return /en[-_]US/i.test(v.lang); }) || list[0] || null;
+    }
+    enVoice = prefer(female);
+    enVoiceFemale = !!enVoice;
+    if (!enVoice) enVoice = prefer(notMale) || prefer(en);
   }
   if ('speechSynthesis' in window) {
     pickVoice();
@@ -124,7 +136,7 @@
     u.lang = enVoice ? enVoice.lang : 'en-GB';
     if (enVoice) u.voice = enVoice;
     u.rate = 0.9;
-    u.pitch = 1.1;
+    u.pitch = enVoiceFemale ? 1.1 : 1.35;
     speechSynthesis.speak(u);
   }
 
