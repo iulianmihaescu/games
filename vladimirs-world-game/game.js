@@ -6,12 +6,12 @@
   // Date
   // ---------------------------------------------------------------------------
   const CONTINENTS = {
-    WORLD: { name: 'Toată lumea', en: 'The whole world', emoji: '🌍', box: null },
-    EU: { name: 'Europa', en: 'Europe', emoji: '🏰', box: [[-25, 34], [45, 71]], hue: 265 },
+    WORLD: { name: 'Whole world', en: 'The whole world', emoji: '🌍', box: null },
+    EU: { name: 'Europe', en: 'Europe', emoji: '🏰', box: [[-25, 34], [45, 71]], hue: 265 },
     AS: { name: 'Asia', en: 'Asia', emoji: '🐼', box: [[25, -11], [148, 58]], hue: 25 },
     AF: { name: 'Africa', en: 'Africa', emoji: '🦁', box: [[-19, -36], [52, 38]], hue: 48 },
-    NA: { name: 'America de Nord', en: 'North America', emoji: '🦅', box: [[-168, 7], [-52, 72]], hue: 120 },
-    SA: { name: 'America de Sud', en: 'South America', emoji: '🦜', box: [[-84, -56], [-34, 13]], hue: 170 },
+    NA: { name: 'North America', en: 'North America', emoji: '🦅', box: [[-168, 7], [-52, 72]], hue: 120 },
+    SA: { name: 'South America', en: 'South America', emoji: '🦜', box: [[-84, -56], [-34, 13]], hue: 170 },
     OC: { name: 'Oceania', en: 'Oceania', emoji: '🦘', box: [[110, -48], [180, 0]], hue: 340 }
   };
 
@@ -21,14 +21,18 @@
       lat: r[4], lon: r[5], conts: r[6], level: r[7]
     };
   });
+  // Jocul e în engleză: numele afișate și cele rostite vin din VWG_EN.
+  // enName poate începe cu „the” (pentru voce); pe ecran îl scriem fără.
   const EN = window.VWG_EN || {};
   COUNTRIES.forEach(function (c) {
     const en = EN[c.id] || [];
     c.enName = en[0] || c.name;
     c.enCapital = en[1] || c.capital;
+    c.name = c.enName.replace(/^the /, '');
+    c.capital = c.enCapital;
   });
   const byId = new Map(COUNTRIES.map(function (c) { return [c.id, c]; }));
-  // Capitala în română → capitala în engleză (pentru variantele citite cu voce tare).
+  // Numele capitalei → cum o rostește vocea.
   const capitalEn = new Map(COUNTRIES.filter(function (c) { return c.capital; })
     .map(function (c) { return [c.capital, c.enCapital]; }));
 
@@ -36,9 +40,7 @@
   const MAX_TRIES = 3;
   const STORE_KEY = 'vwg-total-stars';
 
-  const PRAISE = ['Bravo!', 'Super!', 'Excelent!', 'Foarte bine!', 'Minunat!', 'Ce deștept ești!', 'Ura!'];
-  // Vocea jocului vorbește în engleză.
-  const PRAISE_EN = ['Well done!', 'Great job!', 'Excellent!', 'Awesome!', 'Fantastic!', 'You are so smart!', 'Hooray!'];
+  const PRAISE = ['Well done!', 'Great job!', 'Excellent!', 'Awesome!', 'Fantastic!', 'You are so smart!', 'Hooray!'];
 
   // ---------------------------------------------------------------------------
   // Stare
@@ -83,7 +85,7 @@
     el.textContent = '';
     if (!c) return;
     const img = new Image();
-    img.alt = 'Steagul: ' + c.name;
+    img.alt = 'Flag of ' + c.enName;
     img.src = 'https://flagcdn.com/w160/' + c.iso.toLowerCase() + '.png';
     img.onerror = function () { el.textContent = flagEmoji(c.iso); };
     el.appendChild(img);
@@ -203,7 +205,7 @@
   // ---------------------------------------------------------------------------
   const W = 1000;
   const topo = window.VWG_WORLD;
-  const OTHER_NAMES = { 'Kosovo': 'Kosovo', 'N. Cyprus': 'Cipru de Nord', 'Somaliland': 'Somaliland' };
+  const OTHER_NAMES = { 'Kosovo': 'Kosovo', 'N. Cyprus': 'Northern Cyprus', 'Somaliland': 'Somaliland' };
   const features = topojson.feature(topo, topo.objects.countries).features
     .filter(function (f) { return f.id !== '010'; }) // fără Antarctica
     .map(function (f, i) {
@@ -384,7 +386,7 @@
     $('end-overlay').hidden = true;
     if (screen === 'screen-game') updateViewBox();
     if (screen === 'screen-home') {
-      $('total-stars').textContent = '⭐ ' + loadTotal() + ' stele adunate';
+      $('total-stars').textContent = '⭐ ' + loadTotal() + ' stars collected';
     }
   }
 
@@ -400,8 +402,8 @@
       state.mode = btn.dataset.mode;
       if (state.mode === 'explore') { startExplore(); return; }
       $('setup-title').textContent = state.mode === 'find'
-        ? '🔍 Unde căutăm țările?'
-        : '🏰 Capitalele de unde?';
+        ? '🔍 Where shall we look?'
+        : '🏰 Which capitals?';
       show('screen-setup');
       speak('Choose where you want to play, and how hard it should be.');
     });
@@ -538,14 +540,14 @@
     updateScore();
 
     if (state.mode === 'find') {
-      setPrompt('Găsește pe hartă:', c.name, '');
+      setPrompt('Find on the map:', c.name, '');
       speak('Find ' + c.enName + '!');
       zoomToRegion(state.region);
     } else {
       const f = featureById.get(c.id);
       pathById.get(c.id).classed('target', true);
       zoomToCountry(f, 3);
-      setPrompt('Țara aceasta este:', c.name, 'Care este <b>capitala</b>?');
+      setPrompt('This country is:', c.name, 'What is the <b>capital</b>?');
       const options = capitalOptions(c);
       renderAnswers(options);
       const spoken = options.map(function (o) { return capitalEn.get(o) || o; });
@@ -576,8 +578,8 @@
       addCapitalLabel(target);
       sfx.good();
       confetti(star ? 140 : 60);
-      setPrompt(pick(PRAISE) + ' Ai găsit-o!', target.name, 'Capitala este <b>' + target.capital + '</b> 🏰');
-      speak(pick(PRAISE_EN) + ' You found ' + target.enName + '! The capital is ' + target.enCapital + '.');
+      setPrompt(pick(PRAISE) + ' You found it!', target.name, 'The capital is <b>' + target.capital + '</b> 🏰');
+      speak(pick(PRAISE) + ' You found ' + target.enName + '! The capital is ' + target.enCapital + '.');
       $('next-btn').hidden = false;
       updateScore();
       // Țara găsită rămâne colorată până la sfârșitul rundei.
@@ -610,7 +612,7 @@
     pathById.get(state.current.id).classed('hint', true);
     zoomToCountry(f, 4);
     speak('Look! ' + state.current.enName + ' is blinking. Tap on it!');
-    toast('💡 Apasă pe țara care clipește!');
+    toast('💡 Tap the blinking country!');
   }
 
   // ------------------------- Modul „Capitale” ---------------------------------
@@ -653,8 +655,8 @@
       addCapitalLabel(c);
       sfx.good();
       confetti(star ? 140 : 60);
-      setPrompt(pick(PRAISE), c.name, 'Capitala este <b>' + c.capital + '</b> 🏰');
-      speak(pick(PRAISE_EN) + ' The capital of ' + c.enName + ' is ' + c.enCapital + '.');
+      setPrompt(pick(PRAISE), c.name, 'The capital is <b>' + c.capital + '</b> 🏰');
+      speak(pick(PRAISE) + ' The capital of ' + c.enName + ' is ' + c.enCapital + '.');
       $('next-btn').hidden = false;
       updateScore();
     } else {
@@ -673,20 +675,19 @@
     saveTotal(newTotal);
     const ratio = total ? state.score / total : 0;
     let title;
-    let titleEn;
     let trophy;
-    if (ratio >= 0.9) { title = 'Campion al lumii, Vladimir!'; titleEn = 'World champion, Vladimir!'; trophy = '🏆'; }
-    else if (ratio >= 0.6) { title = 'Foarte bine, Vladimir!'; titleEn = 'Very good, Vladimir!'; trophy = '🥇'; }
-    else if (ratio >= 0.3) { title = 'Bravo, Vladimir!'; titleEn = 'Well done, Vladimir!'; trophy = '🎖️'; }
-    else { title = 'Bun început, Vladimir!'; titleEn = 'Good start, Vladimir!'; trophy = '🌱'; }
+    if (ratio >= 0.9) { title = 'World champion, Vladimir!'; trophy = '🏆'; }
+    else if (ratio >= 0.6) { title = 'Very good, Vladimir!'; trophy = '🥇'; }
+    else if (ratio >= 0.3) { title = 'Well done, Vladimir!'; trophy = '🎖️'; }
+    else { title = 'Good start, Vladimir!'; trophy = '🌱'; }
     $('end-trophy').textContent = trophy;
     $('end-title').textContent = title;
-    $('end-text').textContent = 'Ai câștigat ' + state.score + ' din ' + total + ' stele. În total ai ' + newTotal + ' ⭐';
+    $('end-text').textContent = 'You won ' + state.score + ' out of ' + total + ' stars. Your total: ' + newTotal + ' ⭐';
     $('end-stars').textContent = '⭐'.repeat(state.score) + '☆'.repeat(total - state.score);
     $('end-overlay').hidden = false;
     sfx.win();
     confetti(250);
-    speak(titleEn + ' You won ' + state.score + (state.score === 1 ? ' star' : ' stars') + ' out of ' + total + '!');
+    speak(title + ' You won ' + state.score + (state.score === 1 ? ' star' : ' stars') + ' out of ' + total + '!');
   }
 
   // ------------------------- Modul „Explorează” -------------------------------
@@ -702,7 +703,7 @@
     $('score').textContent = '🧭';
     $('progress').innerHTML = '';
     $('prompt-flag').textContent = '🗺️';
-    setPrompt('Explorează lumea!', 'Atinge o țară', 'Îți spun cum se numește și care e capitala ei.');
+    setPrompt('Explore the world!', 'Tap a country', 'I will tell you its name and its capital.');
     speak('Tap a country on the map, and I will tell you its name!');
     zoomToBounds(worldBounds, { pad: 1 });
   }
@@ -716,9 +717,9 @@
       const raw = f.properties && f.properties.name ? f.properties.name : '?';
       const name = OTHER_NAMES[raw] || raw;
       $('prompt-flag').textContent = '🗺️';
-      setPrompt('Acesta este teritoriul:', name, '');
+      setPrompt('This territory is:', name, '');
       addCountryLabel(f, name);
-      speak(raw);
+      speak(name);
       return;
     }
     setFlag($('prompt-flag'), c);
@@ -726,7 +727,7 @@
     const contName = CONTINENTS[c.conts[0]].name;
     if (c.capital) {
       addCapitalLabel(c);
-      setPrompt(contName, c.name, 'Capitala: <b>' + c.capital + '</b> 🏰');
+      setPrompt(contName, c.name, 'Capital: <b>' + c.capital + '</b> 🏰');
       speak(c.enName.charAt(0).toUpperCase() + c.enName.slice(1) + '. The capital is ' + c.enCapital + '.');
     } else {
       setPrompt(contName, c.name, '');

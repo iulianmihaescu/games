@@ -6,18 +6,19 @@ Un joc de geografie pentru copii (de la ~6 ani): caută țările pe harta lumii 
 
 Deschide `index.html` în browser (dublu-click merge, nu e nevoie de server). Merge pe calculator, tabletă și telefon.
 
-- **🔍 Găsește țara** – jocul spune numele unei țări (și arată steagul); copilul o caută și o atinge pe hartă.
+- **🔍 Find the country** (Găsește țara) – jocul spune numele unei țări (și arată steagul); copilul o caută și o atinge pe hartă.
   Dacă greșește, află ce țară a atins. După 3 încercări (sau cu butonul 💡) țara căutată începe să clipească.
-- **🏰 Capitale** – o țară se colorează pe hartă, iar copilul alege capitala ei din 3 variante.
-- **🧭 Explorează** – atinge orice țară ca să afli cum se numește și care e capitala ei.
+- **🏰 Capitals** (Capitale) – o țară se colorează pe hartă, iar copilul alege capitala ei din 3 variante.
+- **🧭 Explore** (Explorează) – atinge orice țară ca să afli cum se numește și care e capitala ei.
 
 Pentru primele două moduri se alege regiunea (toată lumea sau un continent) și nivelul:
-⭐ Ușor (țări mari și cunoscute), ⭐⭐ Mediu, ⭐⭐⭐ Greu (toate cele ~170 de țări).
+⭐ Easy (țări mari și cunoscute), ⭐⭐ Medium, ⭐⭐⭐ Hard (toate cele ~170 de țări).
 
 Fiecare rundă are 10 întrebări. Răspunsurile corecte fără ajutor aduc câte o stea ⭐, iar stelele se adună de la o rundă la alta.
 
-Textele de pe ecran sunt în română, iar vocea jocului citește întrebările și răspunsurile în **engleză**
-(„Find France!”, „The capital is Paris.”), așa că Vladimir exersează și engleza. 🗣️ repetă ultima frază, 🔊 oprește sunetul.
+Jocul este în întregime în **engleză** (texte pe ecran și voce: „Find France!”, „The capital is Paris.”),
+așa că Vladimir învață geografie și exersează engleza în același timp. Vocea citește totul cu voce tare,
+deci poate fi jucat și de copiii care încă învață să citească. 🗣️ repetă ultima frază, 🔊 oprește sunetul.
 
 Harta se poate mări cu două degete (sau rotița mouse-ului) și muta prin tragere.
 

@@ -1,4 +1,4 @@
-// Țările și capitalele din joc.
+// Țările și capitalele din joc (numele românești; jocul afișează numele englezești din VWG_EN, mai jos).
 // Format: [id hartă (ISO numeric), cod ISO-2, nume, capitală, lat capitală, lon capitală, continente, nivel]
 // Nivel: 1 = ușor (țări mari/cunoscute), 2 = mediu, 3 = greu, 0 = doar în modul „Explorează”.
 // Continente: EU Europa, AS Asia, AF Africa, NA America de Nord, SA America de Sud, OC Oceania.
@@ -189,7 +189,7 @@ window.VWG_COUNTRIES = [
   ['260', 'TF', 'Teritoriile Australe Franceze', null, -49.35, 70.22, ['AF'], 0]
 ];
 
-// Numele în engleză, pentru vocea jocului: id → [țara, capitala]
+// Numele în engleză, afișate și rostite de joc: id → [țara, capitala]
 window.VWG_EN = {
   '642': ['Romania', 'Bucharest'], '498': ['Moldova', 'Chisinau'], '643': ['Russia', 'Moscow'],
   '250': ['France', 'Paris'], '724': ['Spain', 'Madrid'], '380': ['Italy', 'Rome'],
