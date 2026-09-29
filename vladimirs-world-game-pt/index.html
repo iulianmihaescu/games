@@ -1,0 +1,116 @@
+<!doctype html>
+<html lang="pt-PT">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <title>Vladimir's World Game em Português</title>
+  <meta name="description" content="Jogo para crianças: encontra os países e as capitais no mapa do mundo.">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌍</text></svg>">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- ============ ECRAN PRINCIPAL ============ -->
+  <section id="screen-home" class="screen home">
+    <div class="home-inner">
+      <div class="globe" aria-hidden="true">🌍</div>
+      <h1 class="title">Vladimir's<br><span>World Game</span></h1>
+      <p class="subtitle">Vamos descobrir os países e as capitais do mundo!</p>
+      <div class="total-stars" id="total-stars">⭐ 0</div>
+
+      <div class="mode-grid">
+        <button class="mode-btn find" data-mode="find">
+          <span class="mode-emoji">🔍</span>
+          <span class="mode-name">Encontra o país</span>
+          <span class="mode-desc">Procura-o no mapa</span>
+        </button>
+        <button class="mode-btn capitals" data-mode="capitals">
+          <span class="mode-emoji">🏰</span>
+          <span class="mode-name">Capitais</span>
+          <span class="mode-desc">Escolhe a capital certa</span>
+        </button>
+        <button class="mode-btn explore" data-mode="explore">
+          <span class="mode-emoji">🧭</span>
+          <span class="mode-name">Explorar</span>
+          <span class="mode-desc">Toca em qualquer país</span>
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ ALEGE REGIUNEA ============ -->
+  <section id="screen-setup" class="screen setup" hidden>
+    <div class="setup-inner">
+      <button class="back-btn" id="setup-back" aria-label="Voltar">⬅️</button>
+      <h2 id="setup-title">Onde queres jogar?</h2>
+      <div class="region-grid" id="region-grid"></div>
+      <h3>Que dificuldade?</h3>
+      <div class="level-row" id="level-row">
+        <button class="level-btn" data-level="1">⭐<span>Fácil</span></button>
+        <button class="level-btn" data-level="2">⭐⭐<span>Médio</span></button>
+        <button class="level-btn" data-level="3">⭐⭐⭐<span>Difícil</span></button>
+      </div>
+      <button class="play-btn" id="play-btn">Jogar! 🚀</button>
+    </div>
+  </section>
+
+  <!-- ============ JOCUL ============ -->
+  <section id="screen-game" class="screen game" hidden>
+    <header class="topbar">
+      <button class="icon-btn" id="home-btn" aria-label="Menu">🏠</button>
+      <div class="progress" id="progress"></div>
+      <div class="score" id="score">⭐ 0</div>
+      <button class="icon-btn" id="sound-btn" aria-label="Som">🔊</button>
+    </header>
+
+    <div class="prompt" id="prompt">
+      <div class="flag" id="prompt-flag"></div>
+      <div class="prompt-text">
+        <div class="prompt-small" id="prompt-small"></div>
+        <div class="prompt-big" id="prompt-big"></div>
+        <div class="prompt-extra" id="prompt-extra"></div>
+      </div>
+      <button class="icon-btn speak-btn" id="speak-btn" aria-label="Repetir">🗣️</button>
+      <button class="next-btn" id="next-btn" hidden>Seguinte ➡️</button>
+    </div>
+
+    <div class="answers" id="answers" hidden></div>
+
+    <div class="map-wrap" id="map-wrap">
+      <svg id="map" role="img" aria-label="Mapa do mundo"></svg>
+      <div class="map-controls">
+        <button class="icon-btn" id="zoom-in" aria-label="Aumentar">➕</button>
+        <button class="icon-btn" id="zoom-out" aria-label="Diminuir">➖</button>
+        <button class="icon-btn" id="zoom-reset" aria-label="Mapa inteiro">🌍</button>
+        <button class="icon-btn hint-btn" id="hint-btn" aria-label="Ajuda">💡</button>
+      </div>
+      <div class="toast" id="toast" hidden></div>
+    </div>
+  </section>
+
+  <!-- ============ SFÂRȘIT DE RUNDĂ ============ -->
+  <div class="overlay" id="end-overlay" hidden>
+    <div class="end-card">
+      <div class="trophy" id="end-trophy">🏆</div>
+      <h2 id="end-title">Muito bem, Vladimir!</h2>
+      <p id="end-text"></p>
+      <div class="end-stars" id="end-stars"></div>
+      <div class="end-buttons">
+        <button class="play-btn" id="again-btn">Jogar outra vez 🔁</button>
+        <button class="play-btn secondary" id="menu-btn">Menu 🏠</button>
+      </div>
+    </div>
+  </div>
+
+  <canvas id="confetti" aria-hidden="true"></canvas>
+
+  <script src="vendor/d3.min.js"></script>
+  <script src="vendor/topojson-client.min.js"></script>
+  <script src="data/world-110m.js"></script>
+  <script src="data/countries.js"></script>
+  <script src="game.js"></script>
+</body>
+</html>
