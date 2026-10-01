@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Vladimir &amp; Leo World Explorers</title>
-<meta name="description" content="A kids' travel game: fly from Madeira Airport to the cities of Europe and learn about each one.">
+<meta name="description" content="A kids' travel game: fly from Madeira Airport to the big cities of Europe and the world and learn about each one.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -19,7 +19,7 @@
     <div class="start-plane" aria-hidden="true">✈️</div>
     <p class="eyebrow">Madeira Airport · Gate 1</p>
     <h1>Vladimir &amp; Leo<br><span>World Explorers</span></h1>
-    <p class="lead">Fly from Madeira to the capitals and big cities of Europe. Learn something new in every city and collect stamps in your passport!</p>
+    <p class="lead">Fly from Madeira to the capitals and big cities of Europe and the whole world. Learn something new in every city and collect stamps in your passport!</p>
     <div class="start-buttons">
       <button class="btn primary" id="start-btn">Start the adventure ✈️</button>
       <button class="btn ghost" id="new-btn" hidden>New journey from Madeira</button>
@@ -40,12 +40,12 @@
 
   <main class="main">
     <section class="map-wrap" id="map-wrap">
-      <svg id="map" role="img" aria-label="Map of Europe with cities"></svg>
+      <svg id="map" role="img" aria-label="World map with cities"></svg>
       <div class="tooltip" id="tooltip" hidden></div>
       <div class="map-controls">
         <button class="icon" id="zoom-in" aria-label="Zoom in">➕</button>
         <button class="icon" id="zoom-out" aria-label="Zoom out">➖</button>
-        <button class="icon" id="zoom-home" aria-label="Show all of Europe">🗺️</button>
+        <button class="icon" id="zoom-home" aria-label="Show the whole world">🗺️</button>
       </div>
       <button class="btn primary map-fly" id="map-fly" hidden></button>
     </section>
@@ -72,6 +72,14 @@
           <button class="filter" data-sort="az">A–Z</button>
           <button class="filter" data-sort="capitals">Capitals ★</button>
           <button class="filter" data-sort="new">Not visited</button>
+        </div>
+        <div class="filters regions" role="group" aria-label="Continent">
+          <button class="filter on" data-region="all">🌍 All</button>
+          <button class="filter" data-region="Europe">Europe</button>
+          <button class="filter" data-region="Africa">Africa</button>
+          <button class="filter" data-region="Asia">Asia</button>
+          <button class="filter" data-region="Americas">Americas</button>
+          <button class="filter" data-region="Oceania">Oceania</button>
         </div>
         <ul class="list" id="list" role="listbox" aria-label="Cities"></ul>
       </div>
@@ -140,6 +148,7 @@
 <script src="vendor/topojson-client.min.js"></script>
 <script src="data/world-50m.js"></script>
 <script src="data/cities.js"></script>
+<script src="data/world-cities.js"></script>
 <script src="game.js"></script>
 </body>
 </html>

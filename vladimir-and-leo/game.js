@@ -5,7 +5,8 @@
   const $ = function (id) { return document.getElementById(id); };
   const CITIES = window.VLE_CITIES;
   const byId = {};
-  CITIES.forEach(function (c) { byId[c.id] = c; });
+  CITIES.forEach(function (c) { byId[c.id] = c; c.region = c.region || 'Europe'; });
+  const REGIONS = ['Europe', 'Africa', 'Asia', 'Americas', 'Oceania'];
   const START = 'funchal';
   const STORE_KEY = 'vle-state';
 
@@ -42,14 +43,14 @@
   // ---------------------------------------------------------------------------
   // Starea (se păstrează în browser)
   // ---------------------------------------------------------------------------
-  function freshState() { return { current: START, visited: [START], km: 0, flights: 0, badges: [] }; }
+  function freshState() { return { current: START, visited: [START], km: 0, flights: 0, badges: [], longest: 0 }; }
   let state = freshState();
   try {
     const saved = JSON.parse(localStorage.getItem(STORE_KEY));
     if (saved && byId[saved.current]) state = Object.assign(freshState(), saved);
   } catch (e) { /* fără stocare */ }
   function save() { try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch (e) { /* fără stocare */ } }
-  const ui = { selected: null, hover: null, sort: 'near', query: '', flying: false };
+  const ui = { selected: null, hover: null, sort: 'near', region: 'all', query: '', flying: false };
 
   // ---------------------------------------------------------------------------
   // Voce (engleză, voce de femeie dacă există) și sunete
@@ -111,8 +112,11 @@
   const wrap = $('map-wrap');
   const topo = window.VLE_WORLD;
   const countries = topojson.feature(topo, topo.objects.countries).features.filter(function (f) { return f.id !== '010'; });
-  const EUROPE = { type: 'MultiPoint', coordinates: [[-27, 28], [-27, 66], [-20, 66.5], [42, 71], [42, 34], [34, 34], [-17, 28]] };
-  const projection = d3.geoAzimuthalEqualArea().rotate([-8, -52]);
+  // Harta întregii lumi (fără Antarctica); la pornire facem zoom pe Madeira și vecinii ei.
+  const WORLD = { type: 'MultiPoint', coordinates: [[-170, -56], [-170, 78], [180, 78], [180, -56], [0, -56], [0, 78]] };
+  const projection = d3.geoNaturalEarth1();
+  // Cât de mult e mărită harta față de vederea Europei de la început (Europa ≈ zoom 4.5).
+  function ke() { return transform.k / 4.5; }
   const path = d3.geoPath(projection);
   const zoomLayer = svg.append('g');
   const countryLayer = zoomLayer.append('g');
@@ -132,7 +136,7 @@
     const r = wrap.getBoundingClientRect();
     W = Math.max(200, r.width); H = Math.max(160, r.height);
     svg.attr('viewBox', '0 0 ' + W + ' ' + H);
-    projection.fitExtent([[16, 16], [W - 16, H - 16]], EUROPE);
+    projection.fitExtent([[8, 8], [W - 8, H - 8]], WORLD);
     countryLayer.selectAll('path').data(countries).join('path').attr('class', 'country').attr('d', path).attr('fill', fillFor);
     grat.attr('d', path(d3.geoGraticule10()));
     CITIES.forEach(function (c) { c.xy = projection([c.lon, c.lat]); });
@@ -140,7 +144,7 @@
     placeCities();
   }
 
-  const zoom = d3.zoom().scaleExtent([1, 14]).clickDistance(8)
+  const zoom = d3.zoom().scaleExtent([1, 60]).clickDistance(8)
     .on('zoom', function (e) {
       transform = e.transform;
       zoomLayer.attr('transform', transform);
@@ -169,7 +173,7 @@
       const p = transform.apply(c.xy);
       const d = Math.hypot(p[0] - pt[0], p[1] - pt[1]);
       if (d > 20) return;
-      const score = d + (TINY[c.id] || 0) * Math.max(0, 3 - transform.k);
+      const score = d + (TINY[c.id] || 0) * Math.max(0, 3 - ke());
       if (score < bestScore) { bestScore = score; best = c; }
     });
     return best;
@@ -191,13 +195,17 @@
   });
   svg.on('pointerleave', function () { setHover(null, true); $('tooltip').hidden = true; });
 
+  const FAMOUS_EU = ['london', 'paris', 'madrid', 'rome', 'berlin', 'lisbon', 'funchal', 'moscow', 'athens', 'reykjavik', 'stockholm', 'istanbul', 'bucharest', 'warsaw', 'kyiv', 'helsinki', 'oslo', 'dublin'];
+  const FAMOUS_WORLD = ['newyork', 'losangeles', 'mexicocity', 'rio', 'buenosaires', 'lima', 'cairo', 'nairobi', 'capetown', 'lagos', 'dubai', 'newdelhi', 'beijing', 'tokyo', 'bangkok', 'singapore', 'sydney', 'auckland', 'honolulu', 'toronto', 'moscow', 'london', 'paris', 'funchal'];
   function labelVisible(d) {
-    const k = transform.k;
-    return d.id === state.current || d.id === ui.selected || d.id === ui.hover || k >= 2.6 || (d.c && k >= 1.6) ||
-      ['london', 'paris', 'madrid', 'rome', 'berlin', 'lisbon', 'funchal', 'moscow', 'athens', 'reykjavik', 'stockholm', 'istanbul', 'bucharest', 'warsaw', 'kyiv', 'helsinki', 'oslo', 'dublin'].indexOf(d.id) >= 0;
+    const k = ke();
+    if (d.id === state.current || d.id === ui.selected || d.id === ui.hover) return true;
+    if (k >= 2.6 || (d.c && k >= 1.6)) return true;
+    if (k >= 0.8) return FAMOUS_EU.indexOf(d.id) >= 0 || (d.region !== 'Europe' && (d.c || FAMOUS_WORLD.indexOf(d.id) >= 0));
+    return FAMOUS_WORLD.indexOf(d.id) >= 0;
   }
   function placeCities() {
-    const k = transform.k;
+    const k = ke();
     const fs = Math.min(17, 12 + k * 0.8);
     cityG
       .attr('transform', function (d) { const p = transform.apply(d.xy); return 'translate(' + p[0] + ',' + p[1] + ')'; })
@@ -206,7 +214,7 @@
       .classed('selected', function (d) { return d.id === ui.selected; })
       .style('font-size', fs + 'px');
     // Pe ecran mic și la zoom mic, steluțele sunt mai mici ca să nu se suprapună.
-    const ds = Math.min(1, (W < 600 ? 0.42 : 0.6) + 0.18 * k);
+    const ds = Math.min(1, (W < 600 ? 0.34 : 0.48) + 0.18 * k);
     cityG.select('path.dot').attr('transform', 'scale(' + ds.toFixed(2) + ')');
     cityG.select('text').style('display', function (d) { return labelVisible(d) ? null : 'none'; })
       .style('font-size', function (d) { return (d.id === state.current || d.id === ui.selected ? fs + 2 : fs) + 'px'; });
@@ -231,8 +239,8 @@
     const xs = list.map(function (c) { return c.xy[0]; }), ys = list.map(function (c) { return c.xy[1]; });
     const x0 = Math.min.apply(null, xs), x1 = Math.max.apply(null, xs);
     const y0 = Math.min.apply(null, ys), y1 = Math.max.apply(null, ys);
-    const dx = Math.max(x1 - x0, 60), dy = Math.max(y1 - y0, 60);
-    const k = Math.max(1, Math.min(6, 0.7 * Math.min(W / dx, H / dy)));
+    const dx = Math.max(x1 - x0, 14), dy = Math.max(y1 - y0, 14);
+    const k = Math.max(1, Math.min(27, 0.7 * Math.min(W / dx, H / dy)));
     const t = d3.zoomIdentity.translate(W / 2, H / 2).scale(k).translate(-(x0 + x1) / 2, -(y0 + y1) / 2);
     svg.transition().duration(duration || 700).call(zoom.transform, t);
   }
@@ -258,6 +266,7 @@
     const q = norm(ui.query.trim());
     let list = CITIES.filter(function (c) { return c.id !== state.current; });
     if (q) list = list.filter(function (c) { return norm(c.name).indexOf(q) >= 0 || norm(c.country).indexOf(q) >= 0; });
+    if (ui.region !== 'all') list = list.filter(function (c) { return c.region === ui.region; });
     if (ui.sort === 'capitals') list = list.filter(function (c) { return c.c; });
     if (ui.sort === 'new') list = list.filter(function (c) { return state.visited.indexOf(c.id) < 0; });
     if (ui.sort === 'az') list.sort(function (a, b) { return a.name.localeCompare(b.name); });
@@ -351,11 +360,21 @@
       if (i >= 0) flyTo(list[i].id); else selectCity(list[0].id, true);
     }
   });
-  document.querySelectorAll('.filter').forEach(function (b) {
+  document.querySelectorAll('.filter[data-sort]').forEach(function (b) {
     b.addEventListener('click', function () {
       ui.sort = b.dataset.sort;
-      document.querySelectorAll('.filter').forEach(function (x) { x.classList.toggle('on', x === b); });
+      document.querySelectorAll('.filter[data-sort]').forEach(function (x) { x.classList.toggle('on', x === b); });
       renderList();
+    });
+  });
+  document.querySelectorAll('.filter[data-region]').forEach(function (b) {
+    b.addEventListener('click', function () {
+      ui.region = b.dataset.region;
+      document.querySelectorAll('.filter[data-region]').forEach(function (x) { x.classList.toggle('on', x === b); });
+      renderList();
+      // Arătăm pe hartă continentul ales.
+      const inRegion = CITIES.filter(function (c) { return ui.region === 'all' || c.region === ui.region; });
+      if (ui.region === 'all') zoomHome(); else zoomToCities(inRegion, 800);
     });
   });
   $('map-fly').addEventListener('click', function () { if (ui.selected) flyTo(ui.selected); });
@@ -418,6 +437,7 @@
     state.current = city.id;
     state.km += dist;
     state.flights++;
+    state.longest = Math.max(state.longest || 0, dist);
     if (first) state.visited.push(city.id);
     const newBadges = checkBadges();
     save();
@@ -507,7 +527,10 @@
     { id: 'north', icon: '🌌', name: 'Far north', desc: 'Visit Reykjavík, the most northern capital', ok: function () { return state.visited.indexOf('reykjavik') >= 0; } },
     { id: 'italy', icon: '🍕', name: 'Ciao Italia', desc: 'Visit 4 cities in Italy', ok: function () { return visitedCount(['rome', 'milan', 'venice', 'florence', 'naples']) >= 4; } },
     { id: 'twentyfive', icon: '🏅', name: 'Super explorer', desc: 'Visit 25 cities', ok: function () { return state.visited.length >= 25; } },
-    { id: 'all', icon: '🌍', name: 'Europe expert', desc: 'Visit every city in the game', ok: function () { return state.visited.length >= CITIES.length; } }
+    { id: 'continents', icon: '🌐', name: 'Around the world', desc: 'Visit Europe, Africa, Asia, the Americas and Oceania', ok: function () { return REGIONS.every(function (r) { return state.visited.some(function (id) { return byId[id].region === r; }); }); } },
+    { id: 'longhaul', icon: '🛩️', name: 'Long-haul pilot', desc: 'Fly more than 8,000 km in one flight', ok: function () { return (state.longest || 0) >= 8000; } },
+    { id: 'europe', icon: '🏰', name: 'Europe expert', desc: 'Visit 20 cities in Europe', ok: function () { return state.visited.filter(function (id) { return byId[id].region === 'Europe'; }).length >= 20; } },
+    { id: 'all', icon: '🌍', name: 'World expert', desc: 'Visit every city in the game', ok: function () { return state.visited.length >= CITIES.length; } }
   ];
   function checkBadges() {
     const fresh = [];
