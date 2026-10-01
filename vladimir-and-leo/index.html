@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Vladimir &amp; Leo World Explorers</title>
+<meta name="description" content="A kids' travel game: fly from Madeira Airport to the cities of Europe and learn about each one.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>✈️</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Baloo+2:wght@500;600;700;800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+<!-- Ecranul de start -->
+<div class="overlay start" id="start">
+  <div class="start-card">
+    <div class="start-plane" aria-hidden="true">✈️</div>
+    <p class="eyebrow">Madeira Airport · Gate 1</p>
+    <h1>Vladimir &amp; Leo<br><span>World Explorers</span></h1>
+    <p class="lead">Fly from Madeira to the capitals and big cities of Europe. Learn something new in every city and collect stamps in your passport!</p>
+    <div class="start-buttons">
+      <button class="btn primary" id="start-btn">Start the adventure ✈️</button>
+      <button class="btn ghost" id="new-btn" hidden>New journey from Madeira</button>
+    </div>
+  </div>
+</div>
+
+<div class="app" id="app">
+  <header class="topbar">
+    <div class="brand"><span aria-hidden="true">✈️</span> Vladimir &amp; Leo <b>World Explorers</b></div>
+    <div class="chips">
+      <span class="chip" id="chip-cities" title="Cities visited">🏙️ 1</span>
+      <span class="chip" id="chip-km" title="Kilometers flown">✈️ 0 km</span>
+    </div>
+    <button class="icon" id="passport-btn" aria-label="Passport">📒</button>
+    <button class="icon" id="sound-btn" aria-label="Sound">🔊</button>
+  </header>
+
+  <main class="main">
+    <section class="map-wrap" id="map-wrap">
+      <svg id="map" role="img" aria-label="Map of Europe with cities"></svg>
+      <div class="tooltip" id="tooltip" hidden></div>
+      <div class="map-controls">
+        <button class="icon" id="zoom-in" aria-label="Zoom in">➕</button>
+        <button class="icon" id="zoom-out" aria-label="Zoom out">➖</button>
+        <button class="icon" id="zoom-home" aria-label="Show all of Europe">🗺️</button>
+      </div>
+      <button class="btn primary map-fly" id="map-fly" hidden></button>
+    </section>
+
+    <aside class="panel" id="panel">
+      <div class="here">
+        <div class="here-flag" id="here-flag"></div>
+        <div>
+          <div class="label">You are in</div>
+          <div class="here-name" id="here-name"></div>
+          <div class="here-country" id="here-country"></div>
+        </div>
+        <button class="btn small" id="info-btn">Info</button>
+      </div>
+
+      <div id="choose">
+        <h2>Where do you want to fly next?</h2>
+        <div class="search">
+          <span aria-hidden="true">🔍</span>
+          <input id="search" type="search" placeholder="Type a city, like P-a-r-i-s" autocomplete="off" aria-label="Search for a city">
+        </div>
+        <div class="filters" role="group" aria-label="Sort and filter">
+          <button class="filter on" data-sort="near">Nearest</button>
+          <button class="filter" data-sort="az">A–Z</button>
+          <button class="filter" data-sort="capitals">Capitals ★</button>
+          <button class="filter" data-sort="new">Not visited</button>
+        </div>
+        <ul class="list" id="list" role="listbox" aria-label="Cities"></ul>
+      </div>
+
+      <div class="boarding" id="boarding" hidden>
+        <div class="ticket">
+          <div class="ticket-top">BOARDING PASS · Vladimir &amp; Leo</div>
+          <div class="ticket-route">
+            <div><small>From</small><b id="b-from"></b></div>
+            <div class="ticket-plane" aria-hidden="true">✈️</div>
+            <div><small>To</small><b id="b-to"></b></div>
+          </div>
+          <div class="ticket-info" id="b-info"></div>
+          <div class="progress"><div id="b-progress"></div></div>
+        </div>
+      </div>
+    </aside>
+  </main>
+</div>
+
+<!-- Cardul orașului -->
+<div class="overlay" id="city-card" hidden>
+  <div class="card city">
+    <div class="stamp" id="stamp" aria-hidden="true"></div>
+    <div class="city-emoji" id="c-emoji"></div>
+    <p class="eyebrow" id="c-eyebrow"></p>
+    <h2 id="c-title"></h2>
+    <div class="city-meta">
+      <span class="city-flag" id="c-flag"></span>
+      <span id="c-country"></span>
+      <span class="tag" id="c-capital" hidden>★ Capital city</span>
+    </div>
+    <p class="airport-note" id="c-airport" hidden></p>
+    <div class="hello" id="c-hello"></div>
+    <ul class="facts" id="c-facts"></ul>
+    <p class="food" id="c-food"></p>
+    <div class="card-buttons">
+      <button class="btn primary" id="next-btn">Where next? ✈️</button>
+      <button class="btn ghost" id="card-passport">📒 Passport</button>
+    </div>
+  </div>
+</div>
+
+<!-- Pașaportul -->
+<div class="overlay" id="passport" hidden>
+  <div class="card passport">
+    <button class="close" id="passport-close" aria-label="Close">✕</button>
+    <div class="passport-head">
+      <div class="passport-emblem" aria-hidden="true">🌍</div>
+      <div>
+        <p class="eyebrow">Explorer passport</p>
+        <h2>Vladimir &amp; Leo</h2>
+      </div>
+    </div>
+    <div class="stats" id="p-stats"></div>
+    <h3>Badges</h3>
+    <div class="badges" id="p-badges"></div>
+    <h3>Stamps</h3>
+    <div class="stamps" id="p-stamps"></div>
+  </div>
+</div>
+
+<canvas id="confetti" aria-hidden="true"></canvas>
+
+<script src="vendor/d3.min.js"></script>
+<script src="vendor/topojson-client.min.js"></script>
+<script src="data/world-50m.js"></script>
+<script src="data/cities.js"></script>
+<script src="game.js"></script>
+</body>
+</html>
